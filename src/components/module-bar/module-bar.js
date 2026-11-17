@@ -292,7 +292,7 @@ export class ModuleBar extends AppRailPresenter {
     super.destroy();
   }
 
-  /** @param {Node|null} node @returns {boolean} @private */
+  /** @param {Node|null} node @returns {boolean} @protected */
   _containsNode(node) {
     return super._containsNode(node) || Boolean(node && this._catalogue?.getPanel().contains(node));
   }

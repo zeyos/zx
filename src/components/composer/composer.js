@@ -7,6 +7,7 @@ import { rovingTabindex } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
 import { storage } from '../../core/storage.js';
 import { uid } from '../../core/util.js';
+import { AGENT_ITEM_KEYS, agentAvatarOptions, mentionPattern } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Dialog } from '../dialog/dialog.js';
 import { keyLabels } from '../kbd/kbd.js';
@@ -131,8 +132,9 @@ import {
  * the line. `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends and Enter breaks the line.
  * @property {boolean} [busy=false] Whether an agent is working: Send becomes Stop.
  * @property {boolean} [queue=false] Whether the send key holds a message back while the agent works.
- * It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue
- * lives as long as the composer: it is not kept with the draft.
+ * It is sent when the agent is no longer busy, one message each time busy ends, in order; busy that
+ * ends while the composer is disabled sends when it is enabled again. The queue lives as long as
+ * the composer: it is not kept with the draft.
  * @property {number} [queueLimit=10] Most messages that wait at once. At the limit the send key is
  * refused, and the hint says why.
  * @property {boolean} [disabled=false] Whether the composer takes no input.
@@ -247,7 +249,9 @@ export function filterMentions(items, query) {
 }
 
 /**
- * The picked mentions whose `@<label>` is still in the text, each once.
+ * The picked mentions whose `@<label>` is still in the text as a whole mention, each once: not
+ * right after a letter or digit (`ann@ledger.example` mentions nobody) and not right before one
+ * (`@Annabel` does not mention Ann), in any script — the rule AgentThread marks mentions by.
  * @param {string} text
  * @param {MentionItem[]} mentions Mentions in the order they were picked.
  * @param {string} [trigger='@']
@@ -259,7 +263,7 @@ export function mentionsInText(text, mentions, trigger = '@') {
   return (Array.isArray(mentions) ? mentions : []).filter((item) => {
     if (!isMentionItem(item)) return false;
     const key = String(item.id);
-    if (seen.has(key) || !source.includes(`${trigger}${item.label}`)) return false;
+    if (seen.has(key) || !mentionPattern([item.label], trigger)?.test(source)) return false;
     seen.add(key);
     return true;
   });
@@ -460,6 +464,10 @@ export class Composer extends Component {
     /** Whether a queued message is being sent, and whether busy ended again meanwhile. */
     this._sendingQueued = false;
     this._busyEndedAgain = false;
+    /** Whether busy ended while input was off, so a queued message goes when it is back on. */
+    this._sendOwed = false;
+    /** @type {Dialog|null} The question before a queued message replaces the text, while it is open. */
+    this._confirm = null;
     /** The application's hint, which `_syncHint()` shows unless the queue has something to say. */
     this._hint = String(options.hint ?? '');
     this._mentionSource = normalizeMentionSource(options.mentions);
@@ -665,7 +673,8 @@ export class Composer extends Component {
 
   /**
    * Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When
-   * busy ends, the first queued message is sent; the next waits for the next time it ends.
+   * busy ends, the first queued message is sent; the next waits for the next time it ends. Busy
+   * that ends while the composer is disabled sends when it is enabled again.
    * @param {boolean} busy
    * @returns {this}
    * @fires Composer#send
@@ -674,6 +683,8 @@ export class Composer extends Component {
   setBusy(busy) {
     const ended = this._busy && !busy;
     this._busy = Boolean(busy);
+    // Working again takes the place of a send still owed: the next end of busy sends.
+    if (this._busy) this._sendOwed = false;
     this._syncSend();
     if (ended) this._sendNextQueued();
     return this;
@@ -712,9 +723,12 @@ export class Composer extends Component {
   }
 
   /**
-   * Turns input on or off.
+   * Turns input on or off. Turned back on, it sends the queued message that an end of busy owed
+   * while it was off.
    * @param {boolean} disabled
    * @returns {this}
+   * @fires Composer#send
+   * @fires Composer#dequeue
    */
   setDisabled(disabled) {
     this._disabled = Boolean(disabled);
@@ -724,6 +738,10 @@ export class Composer extends Component {
     }
     this._syncState();
     this._syncSend();
+    if (!this._disabled && this._sendOwed && !this._busy) {
+      this._sendOwed = false;
+      this._sendNextQueued();
+    }
     return this;
   }
 
@@ -754,8 +772,11 @@ export class Composer extends Component {
     if (has('note')) this.setNote(String(partial.note ?? ''));
     if (has('submitKey')) this._submitKey = submitKeyOf(partial.submitKey);
     if (has('sendLabel')) this._sendLabel = sendLabelText(partial.sendLabel);
+    // Busy starting goes first and busy ending last, so a queued message waits for both changes.
+    const busy = has('busy') ? Boolean(partial.busy) : null;
+    if (busy === true) this.setBusy(true);
     if (has('disabled')) this.setDisabled(Boolean(partial.disabled));
-    if (has('busy')) this.setBusy(Boolean(partial.busy));
+    if (busy === false) this.setBusy(false);
     this._syncSend();
     return this;
   }
@@ -881,6 +902,8 @@ export class Composer extends Component {
     this._position = null;
     this._launcher?.destroy();
     this._launcher = null;
+    this._confirm?.destroy();
+    this._confirm = null;
     for (const { avatar } of this._mentionFaces.values()) avatar.destroy();
     this._mentionFaces.clear();
     super.destroy();
@@ -1241,17 +1264,15 @@ export class Composer extends Component {
    * @returns {AgentAvatar|null}
    */
   _mentionFace(item) {
-    if (!item.agent) return null;
-    const options = item.agent === true ? {} : item.agent;
+    const options = agentAvatarOptions(item.agent || null, { size: 'sm', label: null, animate: false },
+      { fallback: { name: String(item.label) }, carry: AGENT_ITEM_KEYS });
+    if (!options) return null;
     const key = String(item.id);
-    const signature = JSON.stringify([item.label, options]);
+    const signature = JSON.stringify(options);
     let entry = this._mentionFaces.get(key);
     if (!entry || entry.signature !== signature) {
       entry?.avatar.destroy();
-      entry = {
-        signature,
-        avatar: new AgentAvatar(null, { ...options, name: options.name ?? String(item.label), size: 'sm', label: null, animate: false })
-      };
+      entry = { signature, avatar: new AgentAvatar(null, options) };
       this._mentionFaces.set(key, entry);
     }
     return entry.avatar;
@@ -1366,7 +1387,11 @@ export class Composer extends Component {
    * @fires Composer#dequeue
    */
   _sendQueued() {
-    if (this._busy || this._disabled || this._destroyed) return;
+    if (this._busy || this._destroyed) return;
+    if (this._disabled) {
+      this._sendOwed = true;
+      return;
+    }
     const { queue, item } = takeNext(this._queue);
     if (!item) return;
     this._queue = queue;
@@ -1400,12 +1425,24 @@ export class Composer extends Component {
    */
   async _editQueued(id) {
     if (this._input.value.trim() || this._files.length) {
-      const replace = await Dialog.confirm({
-        title: this.msg('composer.queueReplaceTitle'),
-        message: this.msg('composer.queueReplaceMessage'),
-        okLabel: this.msg('composer.queueReplaceConfirm'),
-        danger: true
-      });
+      if (this._confirm) return;
+      const doc = this.el.ownerDocument;
+      const before = new Set(doc.querySelectorAll('dialog'));
+      let replace = false;
+      try {
+        const answer = Dialog.confirm({
+          title: this.msg('composer.queueReplaceTitle'),
+          message: this.msg('composer.queueReplaceMessage'),
+          okLabel: this.msg('composer.queueReplaceConfirm'),
+          danger: true
+        });
+        // The question is created and opened synchronously; keep it so destroy() can close it.
+        const opened = [...doc.querySelectorAll('dialog')].find((element) => !before.has(element));
+        this._confirm = opened ? /** @type {Dialog|null} */ (Dialog.from(opened)) : null;
+        replace = await answer;
+      } finally {
+        this._confirm = null;
+      }
       if (!replace || this._destroyed) return;
     }
     const { queue, item } = removeFromQueue(this._queue, id);

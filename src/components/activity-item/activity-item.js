@@ -6,7 +6,7 @@ import { printf } from '../../core/i18n.js';
 import { isElement, uid } from '../../core/util.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
-import { authorFace } from '../../internal/agent-model.js';
+import { agentAvatarOptions, authorFace } from '../../internal/agent-model.js';
 import { badge } from '../badge/badge.js';
 import { button } from '../button/button.js';
 import { dateLocale } from '../../internal/date-locale.js';
@@ -270,12 +270,11 @@ export class ActivityItem extends Component {
     const name = value.name || textAlternative(actor);
     const face = authorFace({ kind: 'agent', face: value.face });
     if (face) {
-      this._avatarComponent = new AgentAvatar(null, {
-        ...face, name, tone: /** @type {any} */ (face.tone ?? value.tone ?? null),
-        label: value.label ?? null, size: value.size ?? 'md',
+      this._avatarComponent = new AgentAvatar(null, agentAvatarOptions(face, {
+        name, label: value.label ?? null, size: value.size ?? 'md',
         activity: value.activity ?? null, activityLabel: value.activityLabel ?? null,
         animate: Boolean(value.animate), phase: value.phase ?? null
-      });
+      }, { fallback: { tone: value.tone ?? null } }));
       return this._avatarComponent.toElement();
     }
     const settings = {

@@ -4,8 +4,8 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatFileSize } from '../../core/format.js';
 import { icon } from '../../core/icons.js';
 import { isEditableTarget } from '../../core/keyboard.js';
-import { escapeRegExp, uid } from '../../core/util.js';
-import { AGENT_MESSAGES, authorFace, initialsOf } from '../../internal/agent-model.js';
+import { uid } from '../../core/util.js';
+import { AGENT_MESSAGES, agentAvatarOptions, authorFace, initialsOf, mentionPattern } from '../../internal/agent-model.js';
 import { ApprovalCard } from '../approval-card/approval-card.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
@@ -1185,10 +1185,9 @@ export class AgentThread extends Component {
     if (face) {
       // Only the face's own traits are read from the author, which may be an agent's data; how
       // the avatar is drawn and named belongs to the thread: still, decorative, beside the byline.
-      const agent = own(new AgentAvatar(null, {
-        ...face, name: author.name, tone: /** @type {any} */ (face.tone ?? author.tone ?? null),
-        size: 'sm', label: null, animate: false, activity: author.activity ?? null
-      }));
+      const agent = own(new AgentAvatar(null, agentAvatarOptions(face, {
+        name: author.name, size: 'sm', label: null, animate: false, activity: author.activity ?? null
+      }, { fallback: { tone: author.tone ?? null } })));
       return h('span', { class: 'zx-agent-thread__avatar' }, agent.toElement());
     }
     const avatar = own(new Avatar(null, {
@@ -1679,10 +1678,8 @@ function withMentions(text, mentions) {
     const name = String(typeof mention === 'object' && mention ? mention.name ?? '' : mention ?? '').trim();
     if (name) tones.set(name, typeof mention === 'object' && mention?.tone ? String(mention.tone) : null);
   }
-  const names = [...tones.keys()];
-  if (!names.length) return [text];
-  const escaped = names.sort((a, b) => b.length - a.length).map((name) => escapeRegExp(name));
-  const pattern = new RegExp(`@(?:${escaped.join('|')})(?![\\w])`, 'g');
+  const pattern = mentionPattern(tones.keys());
+  if (!pattern) return [text];
   /** @type {Array<Node|string>} */
   const out = [];
   let from = 0;

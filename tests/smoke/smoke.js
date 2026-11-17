@@ -3159,22 +3159,27 @@ const cases = [
     component.setBusy(false);
     assert(queued().length === 2, 'a disabled composer sent a queued message');
     assert(named(rows()[0], 'Edit').disabled, 'a disabled composer left the queue active');
+    // The agent finished while it was disabled: enabled again, it sends the message it owed.
+    const owed = sent.length;
     component.setDisabled(false);
+    assert(sent.length === owed + 1 && sent.at(-1).text === 'Held' && queued().join() === 'After',
+      'the message owed while disabled did not go out when enabled again');
 
     // A listener that ends busy again gets the next message only when it is done.
+    component.setBusy(true);
+    write('Then');
     const order = [];
     const record = (event) => {
       order.push(event.detail.text);
-      if (event.detail.text === 'Held') {
+      if (event.detail.text === 'After') {
         component.setBusy(true);
         component.setBusy(false);
       }
     };
     component.on('send', record);
-    component.setBusy(true);
     component.setBusy(false);
     component.off('send', record);
-    assert(order.join() === 'Held,After', `the messages went out of order: ${order}`);
+    assert(order.join() === 'After,Then', `the messages went out of order: ${order}`);
 
     // Sent from under the focus: it goes to the row now in that place, then to the text.
     component.setBusy(true);
@@ -5111,7 +5116,7 @@ function dropdownTabReachCase() {
 
 /**
  * The Launcher is a modal on the overlay stack: never nested in the dialog it was opened from,
- * Escape inside it reaches no popup behind it, and toasts move into it.
+ * Escape inside it reaches neither a popup behind it nor that dialog, and toasts move into it.
  * @returns {SmokeDefinition}
  */
 function launcherLayeringCase() {
@@ -5142,6 +5147,8 @@ function launcherLayeringCase() {
       const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
       launcher.refs.input.dispatchEvent(escape);
       assert(dropdown.isOpen(), 'Escape inside the launcher closed a dropdown behind it');
+      assert(escape.defaultPrevented, 'the launcher did not claim the Escape it answered');
+      assert(dialog.isOpen(), 'Escape inside the launcher also closed the dialog it was opened from');
       const closed = new Promise((resolve) => launcher.once('close', resolve));
       launcher.close();
       await closed;

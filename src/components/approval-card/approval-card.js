@@ -6,7 +6,7 @@ import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { isEditableTarget } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
-import { RUN_ACTIVITY, STATUS, agentFaceTraits } from '../../internal/agent-model.js';
+import { RUN_ACTIVITY, STATUS, agentAvatarOptions } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { renderBlocks } from '../block-view/block-view.js';
 import { button } from '../button/button.js';
@@ -52,8 +52,10 @@ import { statusIcon } from '../select/glyphs.js';
  * @property {ApprovalTone} [tone='blue'] Categorical tone of the icon tile.
  * @property {AgentFace|true|null} [agent=null] The agent that asks, drawn as its AgentAvatar face in
  *   place of the icon tile: its traits and name, or `true` to derive the face from the title. The
- *   face looks up at you while the request waits and rests once it is answered; it is decorative,
- *   so the title and description say what is asked.
+ *   face is keyed by the agent's `seed`, else its `name`; without either it is named after the
+ *   title it is given with, and a later title never changes it. The face looks up at you while
+ *   the request waits and rests once it is answered; it is decorative, so the title and
+ *   description say what is asked.
  * @property {2|3|4|5|6} [headingLevel=3] Element level of the title heading.
  * @property {ApprovalStatus} [status='pending'] Where the request stands.
  * @property {Node|Block[]|null} [details=null] What will happen — recipients, amounts, records —
@@ -252,8 +254,10 @@ export class ApprovalCard extends Component {
     /** @type {string|null} */
     this._icon = textOrNull(options.icon);
     this._tone = normalizeTone(options.tone);
-    /** @type {Record<string, string>|null} The face asked for, as traits; it wins over the icon. */
-    this._face = options.agent == null ? null : agentFaceTraits(options.agent);
+    /** @type {Record<string, any>|null} The face asked for, as traits; it wins over the icon. */
+    this._face = agentAvatarOptions(options.agent);
+    /** What names a face that has no seed or name: the title it was given with. */
+    this._faceName = this._title;
     /** @type {AgentAvatar|null} */
     this._avatar = null;
     this._confirmText = confirmTextOf(options.confirmText);
@@ -362,10 +366,11 @@ export class ApprovalCard extends Component {
     if (has('icon') || has('tone') || has('agent')) {
       const name = has('icon') ? textOrNull(partial.icon) : this._icon;
       const tone = has('tone') ? normalizeTone(partial.tone) : this._tone;
-      const face = has('agent') ? (partial.agent == null ? null : agentFaceTraits(partial.agent)) : this._face;
+      const face = has('agent') ? agentAvatarOptions(partial.agent) : this._face;
       if (name !== this._icon || tone !== this._tone || !sameValue(face, this._face)) {
         this._icon = name;
         this._tone = tone;
+        if (!sameValue(face, this._face)) this._faceName = this._title;
         this._face = face;
         this._drawTile();
       }
@@ -847,10 +852,9 @@ export class ApprovalCard extends Component {
     tile.dataset.tone = this._tone;
     if (face) {
       tile.dataset.agent = '';
-      this._avatar = new AgentAvatar(null, {
-        ...face, name: face.name ?? this._title, size: 'sm', label: null, indicator: false, animate: false,
-        activity: this._faceActivity()
-      });
+      this._avatar = new AgentAvatar(null, agentAvatarOptions(face, {
+        size: 'sm', label: null, indicator: false, animate: false, activity: this._faceActivity()
+      }, { fallback: { name: this._faceName } }));
       tile.replaceChildren(this._avatar.toElement());
     } else {
       delete tile.dataset.agent;

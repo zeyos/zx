@@ -8,12 +8,12 @@
  * screen (an `IntersectionObserver`), eases from one pose to the next when an activity changes,
  * clamps its frame step so a long frame never makes an avatar jump, and sleeps while the page is
  * hidden or nothing is moving. Under reduced motion — the system's, or a `data-zx-motion="reduced"`
- * region around an avatar, followed through `watchMotion()` — every avatar returns to rest and the
- * loop stops. It writes `transform` and nothing else.
+ * region around an avatar, followed by one watcher per loop however many avatars it moves — every
+ * avatar returns to rest and the loop stops. It writes `transform` and nothing else.
  *
  * Motion is never the only signal: an avatar's activity is also its dot and its word.
  */
-import { prefersReducedMotion, watchMotion } from '../core/motion.js';
+import { MOTION_ATTRIBUTE, prefersReducedMotion } from '../core/motion.js';
 
 /** @typedef {import('./agent-model.js').AgentActivity} AgentActivity */
 
@@ -57,6 +57,12 @@ const REST = Object.freeze({ y: 0, r: 0, s: 1, w: 0, blink: 0 });
 
 /** Where the shared loop is kept on its document. */
 const LOOP = Symbol('zx.presenceLoop');
+
+/** The operating system's reduced-motion preference. */
+const REDUCED_QUERY = '(prefers-reduced-motion: reduce)';
+
+/** What the loop's one motion watcher observes in each tree an avatar lives in. */
+const MOTION_OBSERVED = Object.freeze({ attributes: true, attributeFilter: [MOTION_ATTRIBUTE], subtree: true });
 
 /** A handle that does nothing, for an environment the loop cannot run in. */
 const INERT = Object.freeze({ set() {}, untrack() {} });
@@ -146,7 +152,6 @@ function settled(pose) {
  * @property {boolean} visible
  * @property {boolean} reduced
  * @property {boolean} moved Whether the loop has written a transform it has not cleared.
- * @property {() => void} unwatch
  */
 
 /**
@@ -154,6 +159,7 @@ function settled(pose) {
  * @property {Document} document
  * @property {Map<HTMLElement, Entry>} entries
  * @property {IntersectionObserver} observer
+ * @property {MutationObserver|null} motion The one watcher of `data-zx-motion` regions.
  * @property {AbortController} abort
  * @property {number} frame
  * @property {number} last
@@ -188,15 +194,11 @@ export function trackPresence(element, activity, options = {}) {
     pose: { y: 0, r: 0, s: 1, w: 0 },
     visible: false,
     reduced: prefersReducedMotion(element),
-    moved: false,
-    unwatch: () => {}
+    moved: false
   };
   loop.entries.set(element, entry);
-  entry.unwatch = watchMotion(element, (reduced) => {
-    entry.reduced = reduced;
-    if (reduced) rest(element, entry);
-    else schedule(loop);
-  });
+  // A region can be set in a shadow root the avatar lives in, out of the document's sight.
+  for (const root of shadowRootsAbove(element)) loop.motion?.observe(root, MOTION_OBSERVED);
   loop.observer.observe(element);
   return handleFor(loop, element);
 }
@@ -219,7 +221,6 @@ function handleFor(loop, element) {
       const entry = loop.entries.get(element);
       if (!entry) return;
       loop.entries.delete(element);
-      entry.unwatch();
       loop.observer.unobserve(element);
       rest(element, entry);
       if (loop.entries.size === 0) teardown(loop);
@@ -246,11 +247,15 @@ function loopOf(doc) {
         if (!entry) continue;
         entry.visible = record.isIntersecting;
         // An avatar built before it was attached could not see the region it landed in.
-        if (entry.visible) entry.reduced = prefersReducedMotion(record.target);
+        if (entry.visible) {
+          entry.reduced = prefersReducedMotion(record.target);
+          for (const root of shadowRootsAbove(record.target)) loop.motion?.observe(root, MOTION_OBSERVED);
+        }
         if (entry.reduced) rest(/** @type {HTMLElement} */ (record.target), entry);
       }
       schedule(loop);
     }),
+    motion: typeof MutationObserver === 'function' ? new MutationObserver(() => recheckMotion(loop)) : null,
     abort: new AbortController(),
     frame: 0,
     last: 0,
@@ -260,6 +265,11 @@ function loopOf(doc) {
     if (doc.hidden) cancel(loop);
     else schedule(loop);
   }, { signal: loop.abort.signal });
+  // One watcher for every avatar the loop moves: the system preference, and any region set or
+  // cleared in the document.
+  if (doc.documentElement) loop.motion?.observe(doc.documentElement, MOTION_OBSERVED);
+  const media = typeof globalThis.matchMedia === 'function' ? globalThis.matchMedia(REDUCED_QUERY) : null;
+  media?.addEventListener?.('change', () => recheckMotion(loop), { signal: loop.abort.signal });
   host[LOOP] = loop;
   return loop;
 }
@@ -268,9 +278,44 @@ function loopOf(doc) {
 function teardown(loop) {
   cancel(loop);
   loop.observer.disconnect();
+  loop.motion?.disconnect();
   loop.abort.abort();
   const host = /** @type {Document & {[LOOP]?: Loop}} */ (loop.document);
   if (host[LOOP] === loop) delete host[LOOP];
+}
+
+/**
+ * Asks every tracked avatar again whether motion should stop where it is: one that must stop goes
+ * to rest at once, and the loop starts again for one that may move.
+ * @param {Loop} loop
+ * @returns {void}
+ */
+function recheckMotion(loop) {
+  for (const [element, entry] of loop.entries) {
+    const reduced = prefersReducedMotion(element);
+    if (reduced === entry.reduced) continue;
+    entry.reduced = reduced;
+    if (reduced) rest(element, entry);
+  }
+  schedule(loop);
+}
+
+/**
+ * The shadow roots on an element's way up to its document.
+ * @param {Element} element
+ * @returns {Node[]}
+ */
+function shadowRootsAbove(element) {
+  const roots = [];
+  /** @type {Element|null} */
+  let node = element;
+  while (node && typeof node.getRootNode === 'function') {
+    const root = node.getRootNode();
+    if (!root || root.nodeType !== 11 || !('host' in root)) break;
+    roots.push(root);
+    node = /** @type {ShadowRoot} */ (root).host;
+  }
+  return roots;
 }
 
 /** @param {Loop} loop @returns {boolean} Whether any avatar could move now. */
@@ -329,7 +374,9 @@ function step(loop, now) {
     pose.r += (target.r - pose.r) * ease;
     pose.s += (target.s - pose.s) * ease;
     pose.w += (target.w - pose.w) * ease;
-    if (settled(target) && settled(pose)) {
+    // Only an activity that stays at rest may settle: a moving one passes through rest once a
+    // cycle, and resting it there would stop the loop with nothing to start it again.
+    if (presencePeriod(entry.activity) === 0 && settled(pose)) {
       rest(element, entry);
       continue;
     }

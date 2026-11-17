@@ -1295,3 +1295,54 @@ test('a synthetic reasoning close does not mix a source start with local time', 
   assert.equal(reasoning.ms, undefined);
   assert.equal(reasoning.label, 'Thought complete');
 });
+
+test('a message never overwrites what already holds its id: it takes an id of its own', () => {
+  const { thread, log, play } = setup();
+  thread.upsert({ id: 'u1', type: 'user', text: 'Please pay invoice 42' });
+  thread.upsert({ id: 'card', type: 'approval', title: 'Send it?', status: 'pending' });
+  const say = (id, delta) => [
+    { type: 'TEXT_MESSAGE_START', messageId: id, role: 'assistant' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: id, delta },
+    { type: 'TEXT_MESSAGE_END', messageId: id }
+  ];
+  play(run('r1', [...say('u1', 'Done.'), ...say('card', 'Also done.')]));
+  assert.deepEqual(thread.items.get('u1'), { id: 'u1', type: 'user', text: 'Please pay invoice 42' }, 'the person’s message stays');
+  assert.equal(thread.items.get('card').type, 'approval', 'the card stays');
+  const answers = thread.order.map((id) => thread.items.get(id)).filter((item) => item.type === 'answer');
+  assert.deepEqual(answers.map((item) => item.text), ['Done.', 'Also done.']);
+  assert.ok(answers.every((item) => item.id !== 'u1' && item.id !== 'card' && item.streaming === false));
+  assert.deepEqual(log.errors, []);
+
+  // A later start for the same message id continues that message, under its own id.
+  play(run('r2', say('u1', ' Again.')));
+  assert.equal(thread.items.get(answers[0].id).text, 'Done. Again.');
+  assert.equal(thread.items.get('u1').type, 'user');
+});
+
+test('an answer the adapter did not draw is taken over and continued, not replaced', () => {
+  const { thread, log, play } = setup();
+  thread.upsert({ id: 'm1', type: 'answer', author: 'finance', blocks: [], text: 'Saved earlier. ' });
+  play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'And now.' },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm1' }
+  ]));
+  assert.equal(thread.items.get('m1').text, 'Saved earlier. And now.');
+  assert.equal(thread.items.get('m1').streaming, false);
+  assert.deepEqual(thread.order.filter((id) => thread.items.get(id).type === 'answer'), ['m1']);
+  assert.deepEqual(log.errors, []);
+});
+
+test('a piece after a fence never overwrites an item that holds its id', () => {
+  const { thread, play } = setup({ inlineSurfaces: true });
+  thread.upsert({ id: 'm1#2', type: 'user', text: 'Mine' });
+  const fence = '```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"confirm","title":"Go?","author":"finance","root":[]}\n{"op":"end","surface":"s1"}\n```\n';
+  play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: `Before\n${fence}After.` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm1' }
+  ]));
+  assert.deepEqual(thread.items.get('m1#2'), { id: 'm1#2', type: 'user', text: 'Mine' });
+  const after = thread.order.map((id) => thread.items.get(id)).find((item) => item.type === 'answer' && item.text === 'After.');
+  assert.ok(after && after.id !== 'm1#2', 'the text after the fence went to an id of its own');
+});

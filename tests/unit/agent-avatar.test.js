@@ -110,3 +110,195 @@ test('every tone has its solid fill in the stylesheet', () => {
     assert.match(css, new RegExp(`\\[data-tone="${tone}"\\][^}]*--zx-color-tone-${tone}-solid`), tone);
   }
 });
+
+test('every pupil stays inside its eye white, in every activity, eye shape and size', () => {
+  /** Whether a circle lies inside a sclera shape, checked around its whole edge. */
+  const inside = (sclera, pupil) => {
+    const a = sclera.attrs;
+    for (let step = 0; step < 360; step += 1) {
+      const angle = (step * Math.PI) / 180;
+      const x = pupil.cx + pupil.r * Math.cos(angle);
+      const y = pupil.cy + pupil.r * Math.sin(angle);
+      if (sclera.tag === 'rect') {
+        if (x < a.x - 1e-6 || x > a.x + a.width + 1e-6 || y < a.y - 1e-6 || y > a.y + a.height + 1e-6) return false;
+      } else if (((x - a.cx) / a.rx) ** 2 + ((y - a.cy) / a.ry) ** 2 > 1 + 1e-6) {
+        return false;
+      }
+    }
+    return true;
+  };
+  for (const eyes of AGENT_EYES) {
+    for (const activity of ['idle', 'thinking', 'working', 'needs-you']) {
+      for (const px of [20, 24, 32, 40, 48, 64]) {
+        for (const spacing of [0, 1, 2]) {
+          const drawn = flatten(agentFace({ tone: 'blue', body: 'circle', eyes, spacing }, activity, px))
+            .filter((shape) => shape.part === 'eye');
+          assert.equal(drawn.length, 2);
+          for (const eye of drawn) {
+            const sclera = eye.children.find((shape) => shape.part === 'sclera');
+            const pupil = flatten(eye.children).find((shape) => shape.part === 'pupil');
+            assert.ok(inside(sclera, pupil.attrs), `${eyes} ${activity} ${px}px spacing ${spacing}`);
+          }
+        }
+      }
+    }
+  }
+});
+
+test('the pupils still point the way each activity looks', () => {
+  for (const eyes of AGENT_EYES) {
+    const traits = { tone: 'blue', body: 'circle', eyes, spacing: 1 };
+    const pupil = (activity) => flatten(agentFace(traits, activity, 48)).find((shape) => shape.part === 'pupil').attrs;
+    const centre = (activity) => flatten(agentFace(traits, activity, 48)).find((shape) => shape.part === 'sclera').attrs;
+    const offset = (activity) => {
+      const sclera = centre(activity);
+      const cx = sclera.cx ?? sclera.x + sclera.width / 2;
+      const cy = sclera.cy ?? sclera.y + sclera.height / 2;
+      return { x: pupil(activity).cx - cx, y: pupil(activity).cy - cy };
+    };
+    assert.ok(offset('thinking').x > 0 && offset('thinking').y < 0, `${eyes} thinking looks up and to the side`);
+    assert.ok(offset('working').y > 0, `${eyes} working looks down`);
+    assert.ok(Math.abs(offset('idle').x) < 1e-9 && Math.abs(offset('idle').y) < 1e-9, `${eyes} idle looks straight out`);
+  }
+});
+
+test('spacing is a trait override, so the traits getTraits() reports give the same face back', () => {
+  const derived = agentTraits('agt-7f3a');
+  for (const spacing of [0, 1, 2]) assert.equal(agentTraits('agt-7f3a', { spacing }).spacing, spacing);
+  assert.deepEqual(agentTraits('agt-7f3a', { spacing: 3 }), derived, 'an unknown spacing is ignored');
+  assert.deepEqual(agentTraits('agt-7f3a', { spacing: /** @type {any} */ ('1') }), derived);
+  const stored = agentTraits('Ledger');
+  assert.deepEqual(agentTraits('A new name', stored), stored, 'the stored traits keep the look across a rename');
+});
+
+/* ------------------------------------------------------------------ presence loop -- */
+
+/**
+ * A browser just big enough for the presence loop: animation frames run by hand, an
+ * IntersectionObserver that reports what the test says, and counted motion watchers.
+ */
+function presenceBrowser() {
+  const saved = {};
+  for (const key of ['requestAnimationFrame', 'cancelAnimationFrame', 'IntersectionObserver', 'MutationObserver', 'matchMedia']) {
+    saved[key] = Object.getOwnPropertyDescriptor(globalThis, key);
+  }
+  let frames = [];
+  let next = 0;
+  let now = 0;
+  const env = {
+    observers: [],
+    mutations: [],
+    mediaListeners: 0,
+    reduced: false,
+    doc: { hidden: false, addEventListener() {}, documentElement: { closest: () => null } },
+    element() {
+      return {
+        ownerDocument: env.doc,
+        style: { transform: '', removeProperty(name) { this[name] = ''; } },
+        closest: (selector) => (env.region && selector.includes('reduced') ? {} : null),
+        getRootNode() { return env.doc; }
+      };
+    },
+    /** Runs animation frames 16.7 ms apart; returns how many ran. */
+    run(count) {
+      let ran = 0;
+      while (frames.length && ran < count) {
+        const frame = frames.shift();
+        now += 16.7;
+        frame.fn(now);
+        ran += 1;
+      }
+      return ran;
+    },
+    get scheduled() { return frames.length > 0; },
+    restore() {
+      for (const [key, descriptor] of Object.entries(saved)) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else delete globalThis[key];
+      }
+    }
+  };
+  globalThis.requestAnimationFrame = (fn) => { next += 1; frames.push({ id: next, fn }); return next; };
+  globalThis.cancelAnimationFrame = (id) => { frames = frames.filter((frame) => frame.id !== id); };
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; env.observers.push(this); }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  globalThis.MutationObserver = class {
+    constructor(callback) { this.callback = callback; this.targets = 0; this.connected = true; env.mutations.push(this); }
+    observe() { this.targets += 1; }
+    disconnect() { this.connected = false; }
+  };
+  globalThis.matchMedia = () => ({
+    get matches() { return env.reduced; },
+    addEventListener() { env.mediaListeners += 1; },
+    removeEventListener() { env.mediaListeners -= 1; }
+  });
+  const originalNow = performance.now.bind(performance);
+  saved.performanceNow = originalNow;
+  performance.now = () => now;
+  const restore = env.restore;
+  env.restore = () => { restore(); performance.now = originalNow; };
+  return env;
+}
+
+test('an idle animated avatar keeps breathing: the loop never stops at the rest point of its cycle', async () => {
+  const { trackPresence } = await import('../../src/internal/presence-loop.js');
+  const env = presenceBrowser();
+  try {
+    for (const phase of [0, 0.25, 0.5]) {
+      const element = env.element();
+      const handle = trackPresence(/** @type {any} */ (element), 'idle', { phase });
+      env.observers[0].callback([{ target: element, isIntersecting: true }]);
+      // Ten seconds: two breaths, each through rest and back.
+      assert.equal(env.run(600), 600, `phase ${phase}: the loop stopped`);
+      assert.ok(env.scheduled, `phase ${phase}: nothing is scheduled`);
+      assert.match(element.style.transform, /scale\(/);
+      handle.untrack();
+      assert.equal(element.style.transform, '', 'untrack puts it back at rest');
+      env.observers.length = 0;
+    }
+    // An activity that stays at rest lets the loop sleep once it has settled.
+    const still = env.element();
+    const handle = trackPresence(/** @type {any} */ (still), 'blocked');
+    env.observers[0].callback([{ target: still, isIntersecting: true }]);
+    env.run(600);
+    assert.equal(env.scheduled, false, 'a blocked avatar keeps the loop running');
+    handle.set('working');
+    assert.ok(env.scheduled, 'a new moving activity starts it again');
+    handle.untrack();
+  } finally {
+    env.restore();
+  }
+});
+
+test('the presence loop watches motion once, however many avatars it moves', async () => {
+  const { trackPresence } = await import('../../src/internal/presence-loop.js');
+  const env = presenceBrowser();
+  try {
+    const elements = [env.element(), env.element(), env.element()];
+    const handles = elements.map((element) => trackPresence(/** @type {any} */ (element), 'working'));
+    env.observers[0].callback(elements.map((target) => ({ target, isIntersecting: true })));
+    assert.equal(env.mutations.length, 1, 'one MutationObserver for the loop');
+    assert.equal(env.mediaListeners, 1, 'one reduced-motion listener for the loop');
+    env.run(30);
+    assert.ok(elements.every((element) => element.style.transform), 'every avatar moves');
+
+    // A reduced-motion region appears: every avatar goes to rest and the loop stops.
+    env.region = true;
+    env.mutations[0].callback([]);
+    assert.ok(elements.every((element) => element.style.transform === ''), 'an avatar kept moving in a reduced region');
+    env.run(5);
+    assert.equal(env.scheduled, false);
+    env.region = false;
+    env.mutations[0].callback([]);
+    assert.ok(env.scheduled, 'motion starts again once the region is gone');
+
+    for (const handle of handles) handle.untrack();
+    assert.equal(env.mutations[0].connected, false, 'the last avatar out disconnects the watcher');
+  } finally {
+    env.restore();
+  }
+});

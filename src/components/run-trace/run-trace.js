@@ -6,7 +6,7 @@ import { formatNumber } from '../../core/format.js';
 import { prefersReducedMotion } from '../../core/motion.js';
 import { uid } from '../../core/util.js';
 import {
-  AGENT_MESSAGES, STATUS, authorFace, formatDuration, formatElapsed, initialsOf, normalizeRunState, traceSummary
+  AGENT_MESSAGES, STATUS, agentAvatarOptions, authorFace, formatDuration, formatElapsed, initialsOf, normalizeRunState, traceSummary
 } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
@@ -15,6 +15,7 @@ import { statusIcon } from '../select/glyphs.js';
 
 /** @typedef {import('../../internal/agent-model.js').TraceStep} TraceStep */
 /** @typedef {import('../../internal/agent-model.js').Author} Author */
+/** @typedef {import('../../internal/agent-model.js').AuthorFace} AuthorFace */
 /** @typedef {import('../../internal/agent-model.js').ItemRef} ItemRef */
 /** @typedef {import('../../internal/agent-model.js').RunState} RunState */
 /** @typedef {import('../avatar/avatar.js').AvatarTone} AvatarTone */
@@ -806,7 +807,7 @@ export class RunTrace extends Component {
   /**
    * @private
    * @param {unknown} key
-   * @returns {{name: string, initials: string, tone: AvatarTone|null, person: boolean, face: Record<string, string>|null}}
+   * @returns {{name: string, initials: string, tone: AvatarTone|null, person: boolean, face: AuthorFace|null}}
    */
   _author(key) {
     const authors = this.options.authors && typeof this.options.authors === 'object' ? this.options.authors : {};
@@ -833,10 +834,8 @@ export class RunTrace extends Component {
   _avatar(key) {
     const author = this._author(key);
     if (author.face) {
-      return new AgentAvatar(null, {
-        ...author.face, name: author.name, tone: /** @type {any} */ (author.face.tone ?? author.tone),
-        size: 'sm', label: null, animate: false
-      });
+      return new AgentAvatar(null, agentAvatarOptions(author.face,
+        { name: author.name, size: 'sm', label: null, animate: false }, { fallback: { tone: author.tone } }));
     }
     return new Avatar(null, {
       name: author.name, initials: author.initials, tone: author.tone, size: 'sm', shape: author.person ? 'circle' : 'rounded'

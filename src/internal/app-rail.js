@@ -5,6 +5,7 @@ import { icon } from '../core/icons.js';
 import { Dropdown } from '../components/dropdown/dropdown.js';
 import { Tooltip } from '../components/tooltip/tooltip.js';
 import { AgentAvatar } from '../components/agent-avatar/agent-avatar.js';
+import { AGENT_ITEM_KEYS, agentAvatarOptions } from './agent-model.js';
 
 /**
  * @typedef {Object} AppNavItem
@@ -212,7 +213,7 @@ export class AppRailPresenter extends Component {
     return this;
   }
 
-  /** Reports whether a node belongs to this rail, including detached flyout panels. @param {Node|null} node @returns {boolean} @private */
+  /** Reports whether a node belongs to this rail, including detached flyout panels. @param {Node|null} node @returns {boolean} @protected */
   _containsNode(node) {
     return Boolean(node && (this.el.contains(node)
       || [...this._flyouts.values()].some((flyout) => flyout.panel.contains(node))));
@@ -737,20 +738,18 @@ export function normalizeAppItems(items) {
  */
 export function appNavIcon(item, renderer, context) {
   let visual = typeof renderer === 'function' ? renderer(item, context) : null;
-  if (visual == null && item.agent) {
-    const options = item.agent === true ? {} : item.agent;
+  const agent = visual == null ? agentAvatarOptions(item.agent || null, {
+    // Navigation draws every face at the small level of detail, whatever its slot measures (24px
+    // rows, a 26px tile, a 34px catalogue tile): one calm, flat look across a menu, so a soft
+    // material is drawn flat here by design.
+    size: 'sm',
+    label: null,
+    animate: false
+  }, { fallback: { name: item.label }, carry: AGENT_ITEM_KEYS }) : null;
+  if (agent) {
     // A fresh avatar per place it is drawn. Navigation draws it at rest, so it holds no listener
     // and no loop entry, and is released with the row that holds it.
-    return new AgentAvatar(null, {
-      ...options,
-      name: options.name ?? item.label,
-      // Navigation draws every face at the small level of detail, whatever its slot measures (24px
-      // rows, a 26px tile, a 34px catalogue tile): one calm, flat look across a menu, so a soft
-      // material is drawn flat here by design.
-      size: 'sm',
-      label: null,
-      animate: false
-    }).toElement();
+    return new AgentAvatar(null, agent).toElement();
   }
   if (visual == null) visual = item.icon;
   if (typeof visual === 'function') visual = visual(context, item);

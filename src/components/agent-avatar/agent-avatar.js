@@ -25,6 +25,9 @@ export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.j
  * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of the
  * fourteen in {@link AGENT_BODIES}.
  * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one.
+ * @property {0|1|2|null} [spacing=null] How far apart the eyes sit — narrow, middle, wide —
+ * instead of the derived spacing. With `tone`, `body` and `eyes` it gives back a look kept from
+ * {@link AgentAvatar#getTraits}.
  * @property {AgentMaterial} [material='flat'] How the body is painted. `flat` is the tone's solid
  * fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain
  * tone across the eyes — from 28px up. Below 28px, when offline, in print and in forced colours a
@@ -51,7 +54,7 @@ export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.j
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The values `set()` accepts. */
-const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'material', 'size', 'label',
+const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'spacing', 'material', 'size', 'label',
   'activity', 'activityLabel', 'indicator', 'animate', 'phase']);
 
 /** How long one blink cycle takes, in seconds; the phase offsets the eyes within it. */
@@ -83,6 +86,7 @@ export class AgentAvatar extends Component {
     tone: null,
     body: null,
     eyes: null,
+    spacing: null,
     material: 'flat',
     size: 'md',
     label: null,
@@ -170,7 +174,8 @@ export class AgentAvatar extends Component {
 
   /**
    * The traits the face is drawn from, so an application can store them — to keep a look across a
-   * rename, or to settle a collision between two agents once.
+   * rename, or to settle a collision between two agents once — and give them back as the `tone`,
+   * `body`, `eyes` and `spacing` options.
    * @returns {AgentTraits}
    */
   getTraits() {
@@ -193,9 +198,9 @@ export class AgentAvatar extends Component {
 
   /** @returns {AgentTraits} */
   _resolveTraits() {
-    const { seed, name, tone, body, eyes } = this._state;
+    const { seed, name, tone, body, eyes, spacing } = this._state;
     const key = seed == null || String(seed).trim() === '' ? name : seed;
-    return agentTraits(key, { tone, body, eyes });
+    return agentTraits(key, { tone, body, eyes, spacing });
   }
 
   /** @returns {number} The rendered size the level of detail is picked for. */

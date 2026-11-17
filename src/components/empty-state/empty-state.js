@@ -1,7 +1,7 @@
 import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
 import { isElement } from '../../core/util.js';
-import { agentFaceTraits } from '../../internal/agent-model.js';
+import { agentAvatarOptions } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { button } from '../button/button.js';
 
@@ -13,7 +13,9 @@ import { button } from '../button/button.js';
  * @property {string|null} [icon='folder-open'] Decorative icon name; null renders no icon.
  * @property {AgentFace|true|null} [agent=null] Draws an agent's face in place of the icon — an empty
  *   conversation, an agent with nothing to do yet: its AgentAvatar traits and name, or `true` to
- *   derive the face from the title. Decorative and at rest, so the text says whose it is.
+ *   derive the face from the title. The face is keyed by the agent's `seed`, else its `name`, else
+ *   the title; give the agent's seed or name so its face matches the one drawn elsewhere.
+ *   Decorative and at rest, so the text says whose it is.
  * @property {string} [title=''] Headline text, rendered as a paragraph so page outlines stay intact.
  * @property {string} [description=''] Supporting sentence below the headline.
  * @property {Array<Element|ButtonOptions>} [actions=[]] Buttons or button descriptors below the text.
@@ -56,13 +58,12 @@ export function emptyState(opts = {}) {
     dataset: { size, align: normalizeAlign(options.align) }
   }));
 
-  const face = options.agent == null ? null : agentFaceTraits(options.agent);
+  const face = agentAvatarOptions(options.agent, { size: AGENT_SIZE[size], label: null, activity: null, animate: false },
+    { fallback: { name: String(options.title ?? '') } });
   if (face) {
     // At rest it holds no listener and no loop entry, so it goes with the element.
     element.append(h('div', { class: 'zx-empty-state__icon', ariaHidden: 'true', dataset: { agent: '' } },
-      new AgentAvatar(null, {
-        ...face, name: face.name ?? String(options.title ?? ''), size: AGENT_SIZE[size], label: null, animate: false
-      }).toElement()
+      new AgentAvatar(null, face).toElement()
     ));
   } else if (options.icon) {
     element.append(h('div', { class: 'zx-empty-state__icon', ariaHidden: 'true' },

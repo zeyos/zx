@@ -6,6 +6,9 @@
  */
 .zx-agent-avatar {
   --zx-agent-avatar-size: var(--zx-space-7);
+  /* The activity dot and where its notch is cut: the inline end, mirrored in right-to-left. */
+  --zx-agent-avatar-dot: max(8px, calc(var(--zx-agent-avatar-size) * .3));
+  --zx-agent-avatar-dot-x: calc(100% - var(--zx-agent-avatar-dot) / 2);
   position: relative;
   display: inline-grid;
   flex: none;
@@ -17,6 +20,7 @@
 
 .zx-agent-avatar[data-size="sm"] { --zx-agent-avatar-size: var(--zx-space-6); }
 .zx-agent-avatar[data-size="lg"] { --zx-agent-avatar-size: var(--zx-space-8); }
+.zx-agent-avatar:dir(rtl) { --zx-agent-avatar-dot-x: calc(var(--zx-agent-avatar-dot) / 2); }
 
 .zx-agent-avatar[data-tone="blue"] { --zx-agent-avatar-solid: var(--zx-color-tone-blue-solid); }
 .zx-agent-avatar[data-tone="teal"] { --zx-agent-avatar-solid: var(--zx-color-tone-teal-solid); }
@@ -87,8 +91,8 @@
   inset-inline-end: 0;
   inset-block-end: 0;
   box-sizing: border-box;
-  inline-size: max(8px, calc(var(--zx-agent-avatar-size) * .3));
-  block-size: max(8px, calc(var(--zx-agent-avatar-size) * .3));
+  inline-size: var(--zx-agent-avatar-dot);
+  block-size: var(--zx-agent-avatar-dot);
   border-radius: 50%;
   background: var(--zx-color-text-muted);
 }
@@ -96,14 +100,11 @@
 .zx-agent-avatar__activity[hidden] { display: none; }
 
 .zx-agent-avatar:has(> .zx-agent-avatar__activity:not([hidden])) > .zx-agent-avatar__face {
-  --zx-agent-avatar-dot: max(8px, calc(var(--zx-agent-avatar-size) * .3));
   --zx-agent-avatar-notch: calc(var(--zx-agent-avatar-dot) * .6 + 2px);
-  --zx-agent-avatar-dot-x: calc(100% - var(--zx-agent-avatar-dot) / 2);
   mask-image: radial-gradient(circle at var(--zx-agent-avatar-dot-x) calc(100% - var(--zx-agent-avatar-dot) / 2),
     transparent var(--zx-agent-avatar-notch), var(--zx-color-agent-pupil) calc(var(--zx-agent-avatar-notch) + .5px));
 }
 
-.zx-agent-avatar:dir(rtl) > .zx-agent-avatar__face { --zx-agent-avatar-dot-x: calc(var(--zx-agent-avatar-dot) / 2); }
 .zx-agent-avatar[data-activity="working"] > .zx-agent-avatar__activity { background: var(--zx-color-success); }
 .zx-agent-avatar[data-activity="thinking"] > .zx-agent-avatar__activity { background: var(--zx-color-info); }
 .zx-agent-avatar[data-activity="needs-you"] > .zx-agent-avatar__activity { background: var(--zx-color-warning); }

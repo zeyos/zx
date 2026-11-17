@@ -61,6 +61,16 @@ test('mentionsInText keeps the picked mentions still written, once each', () => 
   assert.deepEqual(mentionsInText('#Finance agent', picked, '#').map((item) => item.id), ['finance']);
 });
 
+test('mentionsInText counts a mention only where it stands as a whole word', () => {
+  const ann = { id: 'ann', label: 'Ann' };
+  const ledger = { id: 'ledger', label: 'Ledger' };
+  assert.deepEqual(mentionsInText('Ask @Annabel', [ann]), [], 'a longer name is not the picked one');
+  assert.deepEqual(mentionsInText('Write to ann@Ledger.example', [ledger]), [], 'an e-mail address is no mention');
+  assert.deepEqual(mentionsInText('@Annéa', [ann]), [], 'a letter outside ASCII continues the name');
+  assert.deepEqual(mentionsInText('@Ann, ask @Ledger.', [ann, ledger]).map((item) => item.id), ['ann', 'ledger']);
+  assert.deepEqual(mentionsInText('(@Ann)', [ann]).map((item) => item.id), ['ann']);
+});
+
 test('isSubmitKey: Enter sends and Shift+Enter breaks the line', () => {
   assert.equal(isSubmitKey({ key: 'Enter' }, 'enter', { apple: true }), true);
   assert.equal(isSubmitKey({ key: 'Enter', shiftKey: true }, 'enter', { apple: true }), false);

@@ -3,8 +3,13 @@ import test from 'node:test';
 
 import {
   ACTIVITY,
+  AGENT_ITEM_KEYS,
   AGENT_MESSAGES,
+  RUN_ACTIVITY,
   STATUS,
+  agentAvatarOptions,
+  agentFaceTraits,
+  authorFace,
   blocksToMarkdown,
   blocksToText,
   figureRow,
@@ -12,6 +17,7 @@ import {
   formatElapsed,
   initialsOf,
   inlineText,
+  mentionPattern,
   normalizeActivity,
   normalizeRunState,
   parseInline,
@@ -185,4 +191,93 @@ test('SQL keywords are caseless, unknown languages stay plain', () => {
 test('a string still being streamed is coloured to its end', () => {
   const segments = highlight('python', 'print("unfinished');
   assert.equal(segments.at(-1)?.token, 'string');
+});
+
+/* ------------------------------------------------------------------ agent faces -- */
+
+test('RUN_ACTIVITY gives every run state an agent expression', () => {
+  assert.deepEqual(Object.keys(RUN_ACTIVITY).sort(), Object.keys(STATUS).sort());
+  for (const activity of Object.values(RUN_ACTIVITY)) assert.ok(Object.hasOwn(ACTIVITY, activity), activity);
+  assert.equal(RUN_ACTIVITY.running, 'working');
+  assert.equal(RUN_ACTIVITY.waiting, 'needs-you');
+  assert.equal(RUN_ACTIVITY.blocked, 'blocked');
+  assert.equal(RUN_ACTIVITY.failed, 'blocked');
+  for (const state of ['queued', 'paused', 'done', 'stopped', 'skipped']) assert.equal(RUN_ACTIVITY[state], 'idle', state);
+  assert.ok(Object.isFrozen(RUN_ACTIVITY));
+});
+
+test('an author face contributes its traits and nothing else; a person or another value has none', () => {
+  const face = {
+    seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', material: 'soft', spacing: 2,
+    name: 'Spoofed', label: 'Click me', size: 96, animate: true, phase: 0.5, activity: 'needs-you',
+    indicator: false, msg: { 'agent.activity.idle': 'x' }, class: 'evil'
+  };
+  assert.deepEqual(authorFace({ name: 'Ledger', face }),
+    { seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', material: 'soft', spacing: 2 });
+  assert.deepEqual(authorFace({ name: 'Ledger', face: true }), {});
+  assert.equal(authorFace({ name: 'Ada', kind: 'person', face: true }), null);
+  for (const value of [undefined, null, false, 'yes', 1, ['seed']]) assert.equal(authorFace({ name: 'Ledger', face: value }), null);
+  assert.equal(authorFace(null), null);
+  // Only well-formed traits are kept.
+  assert.deepEqual(authorFace({ face: { seed: '', tone: 7, spacing: 3, eyes: null } }), {});
+});
+
+test('a number seed is read as text, so an agent has one face wherever it is drawn', () => {
+  assert.deepEqual(authorFace({ face: { seed: 42 } }), { seed: '42' });
+  assert.deepEqual(agentFaceTraits({ seed: 42, name: 'Ledger' }), { seed: '42', name: 'Ledger' });
+  assert.equal(agentAvatarOptions({ seed: 42 }).seed, '42');
+  assert.equal(agentAvatarOptions({ seed: '42' }).seed, '42');
+  for (const seed of [Number.NaN, Number.POSITIVE_INFINITY]) assert.ok(!('seed' in agentAvatarOptions({ seed })), String(seed));
+});
+
+test('agentAvatarOptions: the place decides how a face is drawn; data says only which face it is', () => {
+  const data = {
+    seed: 'agt-1', name: 'Ledger', tone: 'teal', body: 'drop', eyes: 'square', material: 'soft', spacing: 0,
+    size: 96, label: 'Spoofed', animate: true, phase: 0.5, activity: 'needs-you', activityLabel: 'Help', indicator: false,
+    msg: { 'agent.activity.needsYou': 'x' }
+  };
+  const fixed = { size: 'sm', label: null, animate: false };
+  assert.deepEqual(agentAvatarOptions(data, fixed), {
+    seed: 'agt-1', name: 'Ledger', tone: 'teal', body: 'drop', eyes: 'square', material: 'soft', spacing: 0,
+    size: 'sm', label: null, animate: false
+  });
+  // A place that lets its data say what the agent is doing carries those keys, and only those.
+  const carried = agentAvatarOptions(data, fixed, { carry: AGENT_ITEM_KEYS });
+  assert.equal(carried.activity, 'needs-you');
+  assert.equal(carried.activityLabel, 'Help');
+  assert.equal(carried.indicator, false);
+  assert.deepEqual(carried.msg, data.msg);
+  assert.ok(!('phase' in carried) && carried.size === 'sm' && carried.label === null && carried.animate === false);
+  // Fixed options win over carried ones.
+  assert.equal(agentAvatarOptions(data, { activity: null }, { carry: AGENT_ITEM_KEYS }).activity, null);
+});
+
+test('agentAvatarOptions: fallbacks fill what the source leaves out, and no source is no face', () => {
+  assert.deepEqual(agentAvatarOptions(true, { size: 'sm' }, { fallback: { name: 'Step 3 of 6', tone: 'violet' } }),
+    { name: 'Step 3 of 6', tone: 'violet', size: 'sm' });
+  assert.deepEqual(agentAvatarOptions({ name: 'Ledger', tone: 'teal' }, {}, { fallback: { name: 'Title', tone: 'violet' } }),
+    { name: 'Ledger', tone: 'teal' });
+  assert.equal(agentAvatarOptions({ name: '' }, {}, { fallback: { name: 'Title' } }).name, 'Title', 'an empty name is no name');
+  for (const value of [undefined, null, false, 'yes', 0, ['seed']]) assert.equal(agentAvatarOptions(value, { size: 'sm' }), null);
+  const source = { seed: 'agt-1', name: 'Ledger' };
+  agentAvatarOptions(source, { size: 'sm' }).seed = 'changed';
+  assert.deepEqual(source, { seed: 'agt-1', name: 'Ledger' }, 'the source is never changed');
+});
+
+test('mentionPattern finds whole mentions only, in any script', () => {
+  const find = (text, names, trigger) => [...text.matchAll(mentionPattern(names, trigger) ?? /$^/g)].map((match) => match[0]);
+  assert.deepEqual(find('Ask @Annabel', ['Ann']), [], 'a longer name is not the shorter one');
+  assert.deepEqual(find('Ask @Annabel and @Ann', ['Ann', 'Annabel']), ['@Annabel', '@Ann']);
+  assert.deepEqual(find('ann@Ledger.example', ['Ledger']), [], 'an e-mail address mentions nobody');
+  assert.deepEqual(find('@Ledger, please', ['Ledger']), ['@Ledger']);
+  assert.deepEqual(find('(@Ledger) and @Ledger.', ['Ledger']), ['@Ledger', '@Ledger']);
+  assert.deepEqual(find('@Annéa', ['Ann']), [], 'a letter outside ASCII still continues the word');
+  assert.deepEqual(find('@Ann\u0301', ['Ann']), [], 'so does a combining mark');
+  assert.deepEqual(find('山田@Ledger', ['Ledger']), []);
+  assert.deepEqual(find('@Ann_1', ['Ann']), []);
+  assert.deepEqual(find('hi @Finance agent.', ['Finance agent']), ['@Finance agent']);
+  assert.deepEqual(find('#Finance agent', ['Finance agent'], '#'), ['#Finance agent']);
+  assert.deepEqual(find('@a.b+c', ['a.b+c']), ['@a.b+c'], 'a name is matched literally');
+  assert.equal(mentionPattern([]), null);
+  assert.equal(mentionPattern(['', null]), null);
 });

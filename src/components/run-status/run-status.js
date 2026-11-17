@@ -4,7 +4,7 @@ import { formatDate, isSameDay } from '../../core/date.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatCurrency, formatNumber } from '../../core/format.js';
 import { getLanguage, printf } from '../../core/i18n.js';
-import { AGENT_MESSAGES, RUN_ACTIVITY, STATUS, agentFaceTraits, formatElapsed, normalizeRunState } from '../../internal/agent-model.js';
+import { AGENT_MESSAGES, RUN_ACTIVITY, STATUS, agentAvatarOptions, formatElapsed, normalizeRunState } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { button } from '../button/button.js';
 import { statusIcon } from '../select/glyphs.js';
@@ -79,9 +79,11 @@ import { statusIcon } from '../select/glyphs.js';
  * @property {string|null} [model=null] The model the agent runs on.
  * @property {AgentFace|true|null} [agent=null] The agent whose run this is, drawn as its AgentAvatar
  *   face before the state: its traits and name, or `true` to derive the face from the summary. The
- *   face takes the run's expression — working while it runs, looking up at you while it waits,
- *   blocked when blocked or failed, at rest otherwise. It is decorative, and the compact pill
- *   leaves it out.
+ *   face is keyed by the agent's `seed`, else its `name`; without either it is named after the
+ *   summary it is first drawn with, and it keeps its face while `agent` asks for the same traits,
+ *   so a summary that changes as the run goes on never changes it. The face takes the run's
+ *   expression — working while it runs, looking up at you while it waits, blocked when blocked or
+ *   failed, at rest otherwise. It is decorative, and the compact pill leaves it out.
  * @property {RunStatusAction[]} [actions=[]] Buttons under the summary.
  * @property {boolean} [ticking=true] While the state is `running`, the working time counts on
  * once a second from `workMs` and the moment of the last `update()`. One interval, which sleeps
@@ -436,20 +438,20 @@ export class RunStatus extends Component {
 
   /**
    * The agent's face with the run's expression: the one drawn before, while the traits it asks for
-   * stay the same, so a redraw never re-creates it.
+   * stay the same, so a redraw never re-creates it. The summary is not part of what it asks for:
+   * it names a face that has no seed or name when the face is built, and never changes it after.
    * @private
    * @param {RunState} state
-   * @param {string} summary What names the face when the agent option gives no name.
+   * @param {string} summary What names the face when the agent option gives no seed or name.
    * @returns {Element|null}
    */
   _face(state, summary) {
-    const face = this._values.agent == null ? null : agentFaceTraits(this._values.agent);
-    const key = face ? JSON.stringify({ ...face, name: face.name ?? summary }) : '';
+    const face = agentAvatarOptions(this._values.agent);
+    const key = face ? JSON.stringify(face) : '';
     if (key !== this._faceKey) {
       this._avatar?.destroy();
-      this._avatar = face ? new AgentAvatar(null, {
-        ...face, name: face.name ?? summary, size: 'sm', label: null, indicator: false, animate: false
-      }) : null;
+      this._avatar = face ? new AgentAvatar(null, agentAvatarOptions(face,
+        { size: 'sm', label: null, indicator: false, animate: false }, { fallback: { name: summary } })) : null;
       this._faceKey = key;
     }
     if (!this._avatar) return null;

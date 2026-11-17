@@ -9,6 +9,7 @@
  * events, never through the model.
  */
 import { formatNumber } from '../core/format.js';
+import { escapeRegExp } from '../core/util.js';
 
 /**
  * Where a run, or one step of it, stands.
@@ -107,13 +108,17 @@ import { formatNumber } from '../core/format.js';
  */
 /**
  * The AgentAvatar options an author's face takes; name, size, label and activity come from the
- * author and the place it is drawn.
- * @typedef {{seed?: string, tone?: string, body?: string, eyes?: string, material?: 'flat'|'soft'}} AuthorFace
+ * author and the place it is drawn. `seed` is what keeps the face — the agent's stable id; a
+ * number is read as text, so `42` and `'42'` are one face. `spacing` is the trait
+ * `AgentAvatar.getTraits()` reports, for a look stored once.
+ * @typedef {{seed?: string|number, tone?: string, body?: string, eyes?: string, material?: 'flat'|'soft',
+ *   spacing?: 0|1|2}} AuthorFace
  */
 /**
  * An agent drawn as its AgentAvatar face where a component would otherwise draw an icon: the
  * face's traits and the agent's name. Size, label, activity and motion come from the place it is
- * drawn.
+ * drawn. The face is keyed by `seed`, else by `name`; give one of them, since a face drawn without
+ * either is named after the place it stands in.
  * @typedef {AuthorFace & {name?: string}} AgentFace
  */
 
@@ -518,38 +523,118 @@ export function initialsOf(name) {
   return letters.join('').toUpperCase();
 }
 
+/** The options that say which face an agent has, never how a place draws it. */
+const FACE_KEYS = Object.freeze(['seed', 'tone', 'body', 'eyes', 'material', 'spacing']);
+
 /**
- * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
- * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes` and `material`
- * strings, and anything else — a person, another value — means initials. Authors may come from an
- * agent's own data, so how the face is drawn and named is never read from it.
- * @param {Partial<Author>|null|undefined} author
- * @returns {Record<string, string>|null}
+ * What an item's `agent` may set beyond its face where navigation, the Composer and the Launcher
+ * draw it: what the agent is doing and how that shows. Size, label and motion stay the place's.
+ * @type {ReadonlyArray<string>}
  */
-export function authorFace(author) {
-  if (!author || author.kind === 'person') return null;
-  if (author.face === true) return {};
-  const face = author.face;
-  if (!face || typeof face !== 'object' || Array.isArray(face)) return null;
-  /** @type {Record<string, string>} */
+export const AGENT_ITEM_KEYS = Object.freeze(['activity', 'activityLabel', 'indicator', 'msg']);
+
+/**
+ * Reads a face from what describes it: `true` derives everything, a plain object contributes the
+ * `keys` it holds — non-empty strings, a `seed` that is a finite number as text, a `spacing` of 0,
+ * 1 or 2 — and anything else is no face.
+ * @param {unknown} source
+ * @param {ReadonlyArray<string>} keys
+ * @returns {Record<string, string|number>|null}
+ */
+function readFace(source, keys) {
+  if (source === true) return {};
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
+  /** @type {Record<string, string|number>} */
   const traits = {};
-  for (const key of ['seed', 'tone', 'body', 'eyes', 'material']) {
-    const value = /** @type {Record<string, unknown>} */ (face)[key];
-    if (typeof value === 'string' && value) traits[key] = value;
+  for (const key of keys) {
+    const value = /** @type {Record<string, unknown>} */ (source)[key];
+    if (key === 'spacing') {
+      if (value === 0 || value === 1 || value === 2) traits.spacing = value;
+    } else if (key === 'seed' && typeof value === 'number' && Number.isFinite(value)) {
+      traits.seed = String(value);
+    } else if (typeof value === 'string' && value) {
+      traits[key] = value;
+    }
   }
   return traits;
 }
 
 /**
+ * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
+ * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes`, `material`
+ * and `spacing`, and anything else — a person, another value — means initials. Authors may come
+ * from an agent's own data, so how the face is drawn and named is never read from it.
+ * @param {Partial<Author>|null|undefined} author
+ * @returns {AuthorFace|null}
+ */
+export function authorFace(author) {
+  if (!author || author.kind === 'person') return null;
+  return /** @type {AuthorFace|null} */ (readFace(author.face, FACE_KEYS));
+}
+
+/**
  * What an `agent` option asks for, read as {@link authorFace} reads a `face` — `true` derives
- * everything, a plain object contributes its trait strings and its `name`, anything else is no
- * face. Size, label, activity and motion always belong to the place the face is drawn.
+ * everything, a plain object contributes its traits and its `name`, anything else is no face.
+ * Size, label, activity and motion always belong to the place the face is drawn.
  * @param {unknown} agent
- * @returns {Record<string, string>|null}
+ * @returns {AgentFace|null}
  */
 export function agentFaceTraits(agent) {
-  const traits = authorFace({ face: /** @type {AuthorFace|true} */ (agent) });
-  const name = traits && agent && typeof agent === 'object' ? /** @type {Record<string, unknown>} */ (agent).name : null;
-  if (traits && typeof name === 'string' && name) traits.name = name;
-  return traits;
+  return /** @type {AgentFace|null} */ (readFace(agent, [...FACE_KEYS, 'name']));
+}
+
+/**
+ * The options of the AgentAvatar a component draws for an agent: the one way every component
+ * builds one, so an agent described the same way has the same face wherever it is drawn.
+ *
+ * Only what says which face it is comes from `source` — its `seed` (a string, or a finite number
+ * read as text), its `tone`, `body`, `eyes`, `material` and `name` strings and its `spacing` —
+ * plus the `carry` keys a place lets its data set, as navigation lets an item show what its agent
+ * is doing ({@link AGENT_ITEM_KEYS}). Nothing else in it is read, so data never decides how a face
+ * is sized, labelled or moved. `fallback` fills in what the source leaves out, such as the name of
+ * the row it stands in; `fixed` always wins: the place's size, label and motion.
+ *
+ * The seed keeps a face. A component reads a fallback name once, when it builds the avatar, and
+ * keeps that avatar while the source asks for the same traits, so a summary or a title that
+ * changes later never changes the face.
+ * @param {unknown} source `true`, or a plain object: an `agent` option, an item's `agent`, or an
+ *   author's face as {@link authorFace} reads it.
+ * @param {Record<string, unknown>} [fixed={}] What the place decides; it wins over everything.
+ * @param {{fallback?: Record<string, unknown>, carry?: ReadonlyArray<string>}} [options={}]
+ * @returns {Record<string, any>|null} The options, or null when the source asks for no face.
+ */
+export function agentAvatarOptions(source, fixed = {}, options = {}) {
+  const traits = agentFaceTraits(source);
+  if (!traits) return null;
+  /** @type {Record<string, unknown>} */
+  const carried = {};
+  if (source && typeof source === 'object') {
+    for (const key of options.carry ?? []) {
+      const value = /** @type {Record<string, unknown>} */ (source)[key];
+      if (value !== undefined) carried[key] = value;
+    }
+  }
+  return { ...(options.fallback ?? {}), ...traits, ...carried, ...fixed };
+}
+
+/* ------------------------------------------------------------------ mentions -- */
+
+/** What a mention may not run into on either side: a letter, mark, digit or underscore, in any script. */
+const MENTION_WORD = '[\\p{L}\\p{M}\\p{N}_]';
+
+/**
+ * A pattern that finds each `@name` of `names` in a text as a whole mention: the trigger not right
+ * after a letter, mark, digit or underscore of any script, so `ann@ledger.example` mentions
+ * nobody, and the name not right before one, so `@Annabel` does not mention Ann. Where names
+ * overlap the longest one is found. The Composer reads mentions back from its text and AgentThread
+ * marks them by this one rule.
+ * @param {Iterable<unknown>} names Names without the trigger.
+ * @param {string} [trigger='@']
+ * @returns {RegExp|null} A global pattern, or null without a name.
+ */
+export function mentionPattern(names, trigger = '@') {
+  const list = [...names].map((name) => String(name ?? '')).filter(Boolean)
+    .sort((a, b) => b.length - a.length).map(escapeRegExp);
+  if (!list.length) return null;
+  return new RegExp(`(?<!${MENTION_WORD})${escapeRegExp(String(trigger || '@'))}(?:${list.join('|')})(?!${MENTION_WORD})`, 'gu');
 }

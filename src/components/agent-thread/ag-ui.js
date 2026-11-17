@@ -11,6 +11,7 @@
  *
  * The module imports nothing that needs a DOM; the thread it is given does the drawing.
  */
+import { uid } from '../../core/util.js';
 import { formatDuration } from '../../internal/agent-model.js';
 import { applyPatch } from '../../internal/json-patch.js';
 import { assertCatalog, CATALOG } from '../surface/catalog.js';
@@ -207,12 +208,13 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
 
 /**
  * @typedef {Object} Message
- * @property {string} id
+ * @property {string} id Its first answer item: the message id, or an id of its own when the thread
+ *   already holds that one.
  * @property {Run} run
  * @property {boolean} open
  * @property {boolean} ignored A message of a role the thread does not draw.
  * @property {string|null} author
- * @property {string[]} segments Its answer items: the message id, then `<id>#2`, `<id>#3`…
+ * @property {string[]} segments Its answer items: `id`, then `<id>#2`, `<id>#3`…
  * @property {Set<string>} written Segments that received text.
  * @property {boolean} afterFence A fence's lines came since the last prose.
  * @property {Set<string>} pending Surfaces its fences began and did not end.
@@ -257,10 +259,14 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  *   interrupt is the application's: the event goes to `onunknown`. A result that arrives before
  *   the decision is drawn as it is, the card expires, and no decision is sent for that call; a
  *   surface still waiting is cancelled the same way.
- * - A message id is the answer's item id. A start for a closed message or call reopens it, in this
- *   run or a later one, and its content continues: a reopened call is asked about again once its
- *   arguments are complete. A start for an id still open, or for a call already decided or
- *   answered, is ignored and reported: `ontoolresult` fires once for a call, and a receipt stays.
+ * - A message id is the answer's item id. What already holds that id in the thread is never
+ *   overwritten: an answer the adapter did not draw is taken over, and its content continues as a
+ *   reopened message's does; anything else — a person's message, a card, a piece of another
+ *   message — leaves the message an id of its own. A start for a closed message or call reopens
+ *   it, in this run or a later one, and its content continues: a reopened call is asked about
+ *   again once its arguments are complete. A start for an id still open, or for a call already
+ *   decided or answered, is ignored and reported: `ontoolresult` fires once for a call, and a
+ *   receipt stays.
  * - A surface is the thread item `surface:<runId>/<surface>`, so a model reusing `s1` in every
  *   run gets a new surface each run. Its token is the application's for a custom event, the tool
  *   call id for a surface tool, and the run id for an inline surface.
@@ -358,6 +364,18 @@ export function connectAgUi(thread, options = {}) {
     thread.upsert(item);
     lastPlaced = String(item.id);
   };
+
+  /** @param {string} id @returns {boolean} Whether the item is an answer piece of a message. */
+  const drawnAnswer = (id) => [...messages.values()].some((message) => message.segments.includes(id));
+
+  /**
+   * The id an answer piece goes under: the one asked for while the thread does not hold it,
+   * otherwise one of its own, so a stream never overwrites a person's message, a card, or another
+   * message's text.
+   * @param {string} id
+   * @returns {string}
+   */
+  const freeId = (id) => (thread.get(id) ? uid('zx-ag-ui-message') : id);
 
   /**
    * The item a call's next item goes after: the last item drawn for this call or an earlier call
@@ -725,7 +743,7 @@ export function connectAgUi(thread, options = {}) {
       rest = rest.replace(/^\s+/, '');
       if (!rest) return;
       message.afterFence = false;
-      const id = `${message.id}#${message.segments.length + 1}`;
+      const id = freeId(`${message.id}#${message.segments.length + 1}`);
       message.segments.push(id);
       place(/** @type {ThreadItem} */ ({ id, type: 'answer', ...by(message.author), blocks: [], streaming: true }));
     }
@@ -970,9 +988,13 @@ export function connectAgUi(thread, options = {}) {
     if (reserved) report('not-allowed', `Message id "${id}" uses a prefix the adapter keeps for its own items; the message was dropped`, { event });
     const role = event.role ?? 'assistant';
     const name = typeof event.name === 'string' && Object.hasOwn(authors, event.name) ? event.name : null;
+    const ignored = reserved || role !== 'assistant';
+    const taken = ignored ? null : /** @type {any} */ (thread.get(id));
+    const adopted = taken?.type === 'answer' && !drawnAnswer(id);
+    const itemId = taken && !adopted ? uid('zx-ag-ui-message') : id;
     /** @type {Message} */
     const message = {
-      id, run, open: true, ignored: reserved || role !== 'assistant', author: name ?? agent, segments: [id], written: new Set(),
+      id: itemId, run, open: true, ignored, author: name ?? agent, segments: [itemId], written: new Set(),
       afterFence: false, pending: new Set(), surfaces: 0, splitter: null
     };
     messages.set(id, message);
@@ -980,8 +1002,18 @@ export function connectAgUi(thread, options = {}) {
       if (!reserved) unknown(event);
       return;
     }
+    if (adopted) {
+      // An answer already in the thread — from an earlier connection, say — goes on where it
+      // stands, with the pieces it has, as a reopened message does.
+      /** @param {string} piece @returns {boolean} */
+      const loose = (piece) => /** @type {any} */ (thread.get(piece))?.type === 'answer' && !drawnAnswer(piece);
+      for (let n = 2; loose(`${id}#${n}`); n += 1) message.segments.push(`${id}#${n}`);
+      for (const segment of message.segments) message.written.add(segment);
+      reopenMessage(message, run);
+      return;
+    }
     if (inlineSurfaces) message.splitter = splitterFor(message);
-    place(/** @type {ThreadItem} */ ({ id, type: 'answer', ...by(message.author), blocks: [], streaming: true }));
+    place(/** @type {ThreadItem} */ ({ id: itemId, type: 'answer', ...by(message.author), blocks: [], streaming: true }));
   };
 
   /** @param {AgUiEvent} event */

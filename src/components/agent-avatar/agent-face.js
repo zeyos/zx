@@ -34,6 +34,7 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
  * @property {AvatarTone|null} [tone]
  * @property {AgentBody|null} [body]
  * @property {AgentEyes|null} [eyes]
+ * @property {0|1|2|null} [spacing] How far apart the eyes sit, as `AgentAvatar.getTraits()` reports it.
  */
 
 /**
@@ -105,7 +106,8 @@ export function agentTraits(seed, overrides = {}) {
     ? /** @type {AgentBody} */ (overrides.body) : pick(key, 'body', AGENT_BODIES);
   const eyes = AGENT_EYES.includes(/** @type {AgentEyes} */ (overrides.eyes))
     ? /** @type {AgentEyes} */ (overrides.eyes) : pick(key, 'eyes', AGENT_EYES);
-  const spacing = /** @type {0|1|2} */ (pick(key, 'spacing', [0, 1, 2]));
+  const spacing = [0, 1, 2].includes(/** @type {number} */ (overrides.spacing))
+    ? /** @type {0|1|2} */ (overrides.spacing) : /** @type {0|1|2} */ (pick(key, 'spacing', [0, 1, 2]));
   return { tone, body, eyes, spacing };
 }
 
@@ -160,14 +162,15 @@ function eyePair(eye, activity) {
     return shape('g', 'eyes', {}, [shape('g', 'look', {}, eyes)]);
   }
   let dx = 0; let dy = 0; let px = 0; let py = 0;
+  // The eye takes its final size first, so a pupil's offset is measured on the eye it sits in.
+  if (activity === 'working') h *= 0.62;
+  if (activity === 'needs-you') { w *= 1.2; h *= 1.2; }
   if (activity === 'thinking') {
     if (eye.pupils) { px = w * 0.2; py = -h * 0.22; } else { dx = 2.5; dy = -3; }
   }
   if (activity === 'working') {
     if (eye.pupils) py = h * 0.2; else dy = 2;
-    h *= 0.62;
   }
-  if (activity === 'needs-you') { w *= 1.2; h *= 1.2; }
   xs.forEach((x, index) => {
     const scale = activity === 'thinking' && !eye.pupils && index === 1 ? 0.85 : 1;
     const ew = w * scale;
@@ -178,11 +181,53 @@ function eyePair(eye, activity) {
     const parts = [eyeShape(eye.shape, cx, cy, ew, eh)];
     if (eye.pupils) {
       const radius = Math.min(ew, eh) * (activity === 'needs-you' ? 0.36 : 0.3);
-      parts.push(shape('g', 'gaze', {}, [shape('circle', 'pupil', { cx: r(cx + px), cy: r(cy + py), r: r(radius) })]));
+      const [ox, oy] = fitPupil(eye.shape, ew, eh, radius, px, py);
+      parts.push(shape('g', 'gaze', {}, [shape('circle', 'pupil', { cx: r(cx + ox), cy: r(cy + oy), r: r(radius) })]));
     }
     eyes.push(shape('g', 'eye', {}, parts));
   });
   return shape('g', 'eyes', {}, [shape('g', 'look', {}, eyes)]);
+}
+
+/** The least clearance a pupil keeps from the edge of its eye, in view-box units. */
+const PUPIL_CLEARANCE = 0.3;
+
+/**
+ * A pupil's offset from the centre of its eye, drawn back toward the centre as far as it takes to
+ * keep the whole pupil inside the eye white that {@link eyeShape} draws, however the activity
+ * points it.
+ * @param {AgentEyes} name @param {number} w @param {number} h The eye as drawn.
+ * @param {number} radius The pupil's radius.
+ * @param {number} ox @param {number} oy The offset the activity asks for.
+ * @returns {[number, number]}
+ */
+function fitPupil(name, w, h, radius, ox, oy) {
+  const a = name === 'oval' ? w * 0.42 : w / 2;
+  const b = h / 2;
+  const reach = radius + PUPIL_CLEARANCE;
+  /** @param {number} k @returns {boolean} Whether the pupil fits at `k` times the offset. */
+  const fits = (k) => {
+    const x = ox * k;
+    const y = oy * k;
+    // A square eye's corners round less than a pupil does, so its box is the limit.
+    if (name === 'square') return Math.abs(x) + reach <= a && Math.abs(y) + reach <= b;
+    for (let step = 0; step < 32; step += 1) {
+      const angle = (step * Math.PI) / 16;
+      const px = x + reach * Math.cos(angle);
+      const py = y + reach * Math.sin(angle);
+      if ((px / a) ** 2 + (py / b) ** 2 > 1) return false;
+    }
+    return true;
+  };
+  if (fits(1)) return [ox, oy];
+  let low = 0;
+  let high = 1;
+  for (let round = 0; round < 12; round += 1) {
+    const mid = (low + high) / 2;
+    if (fits(mid)) low = mid;
+    else high = mid;
+  }
+  return [ox * low, oy * low];
 }
 
 /**
