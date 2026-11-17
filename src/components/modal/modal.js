@@ -1,8 +1,9 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
-import { pushOverlay } from '../../core/overlay-stack.js';
-import { closeDialog, isDialogOpen, matchesState, modalDialogs, showDialogModal } from './native-dialog.js';
+import { overlayStack, pushOverlay } from '../../core/overlay-stack.js';
+import { replaceContent } from '../../internal/overlay-content.js';
+import { closeDialog, isDialogOpen, matchesState, showDialogModal } from './native-dialog.js';
 
 /**
  * Controls initial focus may be placed on: what a reader reaches with Tab, rather than everything
@@ -76,6 +77,10 @@ export class Modal extends Component {
   #overlay = null;
   /** Whether the `open` attribute stands in for a `showModal()` the platform does not have. */
   #attributeModal = false;
+  /** Whether the press the next `click` completes began on the backdrop. */
+  #backdropPress = false;
+  /** Set once `destroy()` has finished; a close queued before it then settles nothing. */
+  #destroyed = false;
 
   /**
    * Creates a modal in the configured theme scope, or at document level when none is present.
@@ -101,9 +106,8 @@ export class Modal extends Component {
       const key = /** @type {KeyboardEvent} */ (event);
       if (key.key !== 'Escape' || key.defaultPrevented || key.isComposing) return;
       if (!this.isOpen() || !this._isModal()) return;
-      // Without `showModal()` there is no top layer to ask which dialog is uppermost.
-      const modals = modalDialogs(document);
-      if (modals.length > 0 && modals[modals.length - 1] !== this.el) return;
+      const topmost = topmostModalFor(key);
+      if (topmost && topmost !== this.el) return;
       // Reported before the key is cancelled: a `cancel` listener may ask whether something else
       // had already claimed this keydown, and our own claim must not answer for it.
       if (this.options.closable) this._requestDismiss('escape');
@@ -122,8 +126,19 @@ export class Modal extends Component {
     this.listen(this.el, 'close', () => {
       this._settleClose(this.#nativeClosingPresentations.shift());
     });
+    /*
+     * A backdrop click is a press that starts and ends on the backdrop. The `click` alone cannot
+     * tell: a press inside the panel — selecting text in a field — dragged out and released over
+     * the backdrop dispatches its `click` on the dialog, outside the panel's box.
+     */
+    this.listen(this.el, 'pointerdown', (event) => {
+      this.#backdropPress = event.target === this.el && isBackdropClick(this.el, /** @type {MouseEvent} */ (event));
+    });
     this.listen(this.el, 'click', (event) => {
-      if (!this.options.lightDismiss || event.target !== this.el || !isBackdropClick(this.el, event)) return;
+      const pressed = this.#backdropPress;
+      this.#backdropPress = false;
+      if (!this.options.lightDismiss || !pressed || event.target !== this.el
+        || !isBackdropClick(this.el, /** @type {MouseEvent} */ (event))) return;
       this._requestDismiss('backdrop');
     });
     /*
@@ -328,7 +343,7 @@ export class Modal extends Component {
    * @returns {boolean} Whether this event closed the current presentation.
    */
   _settleClose(closingPresentation) {
-    if (!this._isRealClose(closingPresentation)) {
+    if (this.#destroyed || !this._isRealClose(closingPresentation)) {
       if (closingPresentation !== undefined) this.#pendingResults.delete(closingPresentation);
       return false;
     }
@@ -491,10 +506,18 @@ export class Modal extends Component {
   destroy() {
     if (this.#destroying) return;
     this.#destroying = true;
-    if (this.isOpen()) this._dismiss();
-    // The queued close that would settle it never arrives once listeners are aborted.
+    if (this.isOpen()) {
+      this._dismiss();
+      /*
+       * The queued close that would settle it never arrives once listeners are aborted, so it is
+       * settled here: `close` is emitted once, as on every other close path, and focus goes back
+       * to the opener while that listener is still attached.
+       */
+      if (this.el.dataset.state === 'open') this._settleClose(this.#presentation);
+    }
     this._releaseOverlay();
     super.destroy();
+    this.#destroyed = true;
   }
 
   /** @param {string|number} width @returns {void} */
@@ -569,21 +592,22 @@ function isFocusable(element, root) {
 }
 
 /**
- * @param {Element} target
- * @param {Node|string|number|{toElement: () => Node|null}|null|undefined} content
- * @returns {void}
+ * The modal dialog an Escape keydown belongs to.
+ *
+ * Everything outside the topmost modal dialog is inert, so a key pressed inside an open modal
+ * dialog was pressed in the topmost one — whoever opened it, the library or the application.
+ * A key with no such dialog around it (focus on a popup above the dialog, or lost to the body)
+ * goes to the modal opened last, which is the overlay stack's order. Document order cannot answer
+ * either: a dialog constructed early sits before one constructed later wherever it opens.
+ * @param {KeyboardEvent} event Escape keydown.
+ * @returns {Element|null}
  */
-function replaceContent(target, content) {
-  target.replaceChildren();
-  if (content == null) return;
-  if (typeof content === 'string' || typeof content === 'number') {
-    target.append(document.createTextNode(String(content)));
-  } else if (typeof content.toElement === 'function') {
-    const element = content.toElement();
-    if (element) target.append(element);
-  } else if (typeof content.nodeType === 'number') {
-    target.append(content);
+function topmostModalFor(event) {
+  const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+  for (let node = /** @type {any} */ (path[0] ?? event.target); node; node = node.parentNode ?? node.host ?? null) {
+    if (node.localName === 'dialog' && matchesState(node, ':modal')) return node;
   }
+  return overlayStack.topmostModal();
 }
 
 /** @param {HTMLDialogElement} dialog @param {MouseEvent} event @returns {boolean} */

@@ -82,6 +82,65 @@ export function menuItemRole(item) {
 }
 
 /**
+ * The checked state choosing an item leaves it in: a `menuitemcheckbox` toggles, a `menuitemradio`
+ * becomes checked, and a plain `menuitem` has none.
+ * @param {MenuItem} item Chosen item.
+ * @param {boolean} current Whether it is checked now.
+ * @returns {boolean|undefined}
+ */
+export function nextCheckedState(item, current) {
+  const role = menuItemRole(item);
+  if (role === 'menuitemradio') return true;
+  if (role === 'menuitemcheckbox') return !current;
+  return undefined;
+}
+
+/**
+ * The indices of the `menuitemradio` items in the same group as the entry at `index`: the section
+ * of the menu it sits in, between the nearest separators or headings. Empty for any other entry.
+ * @param {MenuEntry[]} entries The menu's entries.
+ * @param {number} index Index of a radio item.
+ * @returns {number[]}
+ */
+export function radioGroupIndices(entries, index) {
+  const entry = entries[index];
+  if (!isMenuItem(entry) || menuItemRole(entry) !== 'menuitemradio') return [];
+  const bounds = (candidate) => candidate === '-' || (Boolean(candidate) && typeof candidate === 'object'
+    && ['separator', 'heading'].includes(String(/** @type {{type?: unknown}} */ (candidate).type ?? '')));
+  let start = index;
+  while (start > 0 && !bounds(entries[start - 1])) start -= 1;
+  let end = index;
+  while (end < entries.length - 1 && !bounds(entries[end + 1])) end += 1;
+  const group = [];
+  for (let position = start; position <= end; position += 1) {
+    const candidate = entries[position];
+    if (isMenuItem(candidate) && menuItemRole(candidate) === 'menuitemradio') group.push(position);
+  }
+  return group;
+}
+
+/**
+ * Shows a chosen checkbox or radio item's new state in a menu rendered by `renderMenuEntries()`:
+ * its `aria-checked`, and for a radio item that it is now the only checked one of its group. The
+ * entries themselves are left as the application gave them.
+ * @param {HTMLElement} panel Menu panel holding the rendered entries.
+ * @param {MenuEntry[]} entries The entries it was rendered from.
+ * @param {number} index Index of the chosen entry.
+ * @param {boolean} checked The chosen item's new state.
+ * @returns {void}
+ */
+export function applyCheckedState(panel, entries, index, checked) {
+  const entry = entries[index];
+  if (!isMenuItem(entry) || menuItemRole(entry) === 'menuitem') return;
+  const element = (position) => panel.querySelector(`[data-menu-item="${position}"]:not([data-menu-option])`);
+  element(index)?.setAttribute('aria-checked', String(checked));
+  if (!checked) return;
+  for (const position of radioGroupIndices(entries, index)) {
+    if (position !== index) element(position)?.setAttribute('aria-checked', 'false');
+  }
+}
+
+/**
  * Builds one menu's entries with shared structure and link safety.
  * @param {MenuEntry[]} entries Entry definitions.
  * @param {string} block CSS block name, without the `zx-` prefix.

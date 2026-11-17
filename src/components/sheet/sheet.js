@@ -78,7 +78,11 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
 export class Sheet extends Dialog {
   static cssName = 'sheet';
 
-  /** @type {Readonly<SheetOptions>} */
+  /**
+   * A sheet's `size` is any CSS length along its axis, wider than Dialog's presets, so the static
+   * side is typed loosely there to stay assignable to Dialog's.
+   * @type {Readonly<SheetOptions & {size?: any}>}
+   */
   static defaults = {
     side: 'end',
     modal: true,

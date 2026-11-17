@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { rovingStep } from '../../core/keyboard.js';
 import { isElement, uid } from '../../core/util.js';
 import { button } from '../button/button.js';
 import { MenuButton } from '../menu-button/menu-button.js';
@@ -394,7 +395,9 @@ export class NavigationBar extends Component {
     const enabled = this._enabledItems();
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      const offset = event.key === 'ArrowRight' ? 1 : -1;
+      // The arrows follow the visual order, which `dir="rtl"` reverses.
+      const step = rovingStep(event.key, 'horizontal', isRightToLeft(this.refs.items));
+      const offset = step === 'next' ? 1 : -1;
       const index = enabled.indexOf(current);
       const next = enabled[(index + offset + enabled.length) % enabled.length];
       if (next) this._focusTab(next);
@@ -589,6 +592,15 @@ export function lengthToPixels(length, rootFontSize = 16) {
   if (!value.endsWith('rem')) return size;
   const root = Number(rootFontSize);
   return size * (Number.isFinite(root) && root > 0 ? root : 16);
+}
+
+/**
+ * Whether an element is laid out right to left, as its computed `direction` says.
+ * @param {Element} element Element to ask.
+ * @returns {boolean}
+ */
+function isRightToLeft(element) {
+  return globalThis.getComputedStyle?.(element)?.direction === 'rtl';
 }
 
 /** @param {unknown} content @returns {content is NavigationPanelContent} */

@@ -4,6 +4,7 @@ import { connectedOverlayHost, openDialogOf, overlayHost, overlayScope } from '.
 import { pushOverlay } from '../../core/overlay-stack.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
+import { replaceContent } from '../../internal/overlay-content.js';
 
 /** What Tab may land on inside a panel: the controls a reader reaches in sequence. */
 const TABBABLE_SELECTOR = [
@@ -304,24 +305,6 @@ export class Dropdown extends Component {
  * @event Dropdown#close
  * @type {CustomEvent<Record<string, never>>}
  */
-
-/**
- * @param {Element} target
- * @param {Node|string|number|{toElement: () => Node|null}|null|undefined} content
- * @returns {void}
- */
-function replaceContent(target, content) {
-  target.replaceChildren();
-  if (content == null) return;
-  if (typeof content === 'string' || typeof content === 'number') {
-    target.append(document.createTextNode(String(content)));
-  } else if (typeof content.toElement === 'function') {
-    const element = content.toElement();
-    if (element) target.append(element);
-  } else if (typeof content.nodeType === 'number') {
-    target.append(content);
-  }
-}
 
 /**
  * The controls inside a container Tab would visit, in document order.

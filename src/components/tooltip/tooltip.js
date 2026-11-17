@@ -43,8 +43,9 @@ const TRIGGERS = new Set(['hover', 'focus', 'both', 'manual']);
  * The bubble is a manual popover in the top layer, positioned by `position()` from the kernel, so
  * it escapes clipping and stacking contexts and flips near a viewport edge. It never takes focus
  * but remains visible while the pointer is over either the anchor or the bubble. While open, the
- * anchor carries `aria-describedby` pointing at the bubble; closing restores
- * whatever the anchor had before — including nothing at all.
+ * anchor's `aria-describedby` also names the bubble; closing takes out that one id and leaves the
+ * rest of the list as it is then, ids the application added meanwhile included — and removes the
+ * attribute only when the bubble's id was all it held.
  *
  * A hover opens it after `delay`; keyboard focus opens it at once, because a keyboard user has no
  * way to "hover a little longer". Touch never opens it: a bubble that cannot be dismissed by
@@ -75,8 +76,6 @@ export class Tooltip extends Component {
   #content;
   /** @type {ReturnType<typeof position>|null} */
   #position = null;
-  /** The anchor's `aria-describedby` before this tooltip touched it; `null` when it had none. */
-  #describedBy = null;
   /** Handle of the pending open timer; `0` when none is scheduled. */
   #openTimer = 0;
   /** Handle of the pending close timer; `0` when none is scheduled. */
@@ -108,7 +107,6 @@ export class Tooltip extends Component {
     connectedOverlayHost(resolved, { dialog: false })?.append(this.el);
     this.#content = this.options.content;
     this.#disabled = Boolean(this.options.disabled);
-    this.#describedBy = resolved.getAttribute('aria-describedby');
     this.el.style.setProperty('--zx-tooltip-max-inline-size', cssLength(this.options.maxWidth));
 
     const trigger = TRIGGERS.has(this.options.trigger) ? this.options.trigger : 'both';
@@ -207,7 +205,8 @@ export class Tooltip extends Component {
       this.el.style.setProperty('position-try-fallbacks', 'flip-inline, top span-all, bottom span-all');
     }
     this.el.dataset.state = 'open';
-    this.#anchor.setAttribute('aria-describedby', appendToken(this.#describedBy, this.el.id));
+    // Read now, not at construction: a field error described since then stays described.
+    this.#anchor.setAttribute('aria-describedby', appendToken(this.#anchor.getAttribute('aria-describedby'), this.el.id));
     /*
      * On the stack even when manual, so the order is shared and a closing parent takes the bubble
      * with it; only a dismissible tooltip takes Escape (WCAG 1.4.13), presses, and focus. Escape
@@ -233,7 +232,7 @@ export class Tooltip extends Component {
   }
 
   /**
-   * Closes the tooltip and restores the anchor's original `aria-describedby`.
+   * Closes the tooltip and takes its id out of the anchor's `aria-describedby`.
    * @returns {this}
    * @fires Tooltip#close
    */
@@ -245,7 +244,7 @@ export class Tooltip extends Component {
     this.#bubbleHovered = false;
     this.el.dataset.state = 'closed';
     this.el.replaceChildren();
-    this.#restoreDescribedBy();
+    this.#removeDescribedBy();
     const overlay = this.#overlay;
     this.#overlay = null;
     overlay?.release();
@@ -320,14 +319,14 @@ export class Tooltip extends Component {
   }
 
   /**
-   * Closes the tooltip, removes the bubble, and puts the anchor's ARIA back as it was found.
+   * Closes the tooltip, removes the bubble, and takes its id out of the anchor's ARIA.
    * @returns {void}
    */
   destroy() {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.hide();
-    this.#restoreDescribedBy();
+    this.#removeDescribedBy();
     super.destroy();
   }
 
@@ -370,10 +369,18 @@ export class Tooltip extends Component {
     this.#closeTimer = 0;
   }
 
-  /** @returns {void} */
-  #restoreDescribedBy() {
-    if (this.#describedBy === null) this.#anchor.removeAttribute('aria-describedby');
-    else this.#anchor.setAttribute('aria-describedby', this.#describedBy);
+  /**
+   * Takes the bubble's id out of the anchor's `aria-describedby`, leaving every other id in place.
+   * @returns {void}
+   */
+  #removeDescribedBy() {
+    const current = this.#anchor.getAttribute('aria-describedby');
+    if (current === null) return;
+    const tokens = current.split(/\s+/).filter(Boolean);
+    if (!tokens.includes(this.el.id)) return;
+    const rest = tokens.filter((token) => token !== this.el.id);
+    if (rest.length) this.#anchor.setAttribute('aria-describedby', rest.join(' '));
+    else this.#anchor.removeAttribute('aria-describedby');
   }
 }
 

@@ -1,6 +1,7 @@
 import { h } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
+import { appendContent, replaceContent } from '../../internal/overlay-content.js';
 import { Modal } from '../modal/modal.js';
 import { button } from '../button/button.js';
 
@@ -550,31 +551,4 @@ export function normalizeDialogButtons(list) {
       autofocus: Boolean(button?.autofocus) && !disabled
     };
   });
-}
-
-/**
- * @param {Element} target
- * @param {Node|string|number|{toElement: () => Node|null}|null|undefined} content
- * @returns {void}
- */
-function replaceContent(target, content) {
-  target.replaceChildren();
-  appendContent(target, content);
-}
-
-/**
- * @param {Element} target
- * @param {Node|string|number|{toElement: () => Node|null}|null|undefined} content
- * @returns {void}
- */
-function appendContent(target, content) {
-  if (content == null) return;
-  if (typeof content === 'string' || typeof content === 'number') {
-    target.append(document.createTextNode(String(content)));
-  } else if (typeof content.toElement === 'function') {
-    const element = content.toElement();
-    if (element) target.append(element);
-  } else if (typeof content.nodeType === 'number') {
-    target.append(content);
-  }
 }

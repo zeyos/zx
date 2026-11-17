@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
+import { AGENT_ITEM_KEYS, agentAvatarOptions } from '../../internal/agent-model.js';
 import { h, safeHref } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
@@ -856,17 +857,16 @@ export class Launcher extends Component {
    */
   _agentFace(item) {
     if (!item.agent) return null;
-    const options = item.agent === true ? {} : item.agent;
     const key = String(item.id);
     const size = normalizeLauncherKind(item.kind) === 'application' ? 'md' : 'sm';
-    const signature = JSON.stringify([item.label, size, options]);
+    const options = agentAvatarOptions(item.agent, { size, label: null, animate: false },
+      { fallback: { name: String(item.label) }, carry: AGENT_ITEM_KEYS });
+    if (!options) return null;
+    const signature = JSON.stringify(options);
     let entry = this._agentFaces.get(key);
     if (!entry || entry.signature !== signature) {
       entry?.avatar.destroy();
-      entry = {
-        signature,
-        avatar: new AgentAvatar(null, { ...options, name: options.name ?? String(item.label), size, label: null, animate: false })
-      };
+      entry = { signature, avatar: new AgentAvatar(null, options) };
       this._agentFaces.set(key, entry);
     }
     return entry.avatar;
@@ -909,6 +909,9 @@ export class Launcher extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (event.key === 'Escape') {
+      // Claimed, so the key ends here: a dialog the launcher was opened from leaves a prevented
+      // Escape alone, and would otherwise close in the same keystroke.
+      event.preventDefault();
       this.close();
       return;
     }

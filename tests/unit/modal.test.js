@@ -87,6 +87,53 @@ test('focus returns to the opener on every one of the four close paths', async (
   }
 });
 
+test('light dismiss needs the press to start on the backdrop, not just the click to end there', async () => {
+  await withDocument(async () => {
+    const field = h('input', {});
+    const modal = new Modal(null, { lightDismiss: true, content: field });
+    const reasons = [];
+    modal.on('cancel', (event) => reasons.push(event.detail.reason));
+    modal.open();
+    await flush();
+
+    // Text selected in the field and released over the backdrop: the click lands on the dialog.
+    clickBackdrop(modal, field);
+    await flush();
+    assert.equal(modal.isOpen(), true, 'a drag out of the panel is not a backdrop click');
+    assert.deepEqual(reasons, []);
+
+    clickBackdrop(modal);
+    await flush();
+    assert.equal(modal.isOpen(), false, 'a press and release on the backdrop still dismisses');
+    assert.deepEqual(reasons, ['backdrop']);
+    modal.destroy();
+  });
+});
+
+test('destroy() on an open overlay settles its close and emits close once', async () => {
+  for (const create of [
+    () => new Modal(null, { content: 'Body' }),
+    () => new Dialog(null, { title: 'Edit', content: 'Body' })
+  ]) {
+    await withDocument(async (doc) => {
+      const opener = doc.body.appendChild(doc.createElement('button'));
+      const overlay = create();
+      const results = [];
+      overlay.on('close', (event) => results.push(event.detail.result));
+      opener.focus();
+      overlay.open();
+      await flush();
+      overlay.destroy();
+      await flush();
+      overlay.destroy();
+      await flush();
+      assert.equal(results.length, 1, 'one close event, neither none nor a second from the queued one');
+      assert.equal(overlay.el.isConnected, false);
+      assert.equal(doc.activeElement, opener, 'focus goes back to the opener');
+    });
+  }
+});
+
 test('a second cycle restores to the opener that opened it, not the first one', async () => {
   await withDocument(async (doc) => {
     const first = doc.body.appendChild(doc.createElement('button'));
@@ -452,11 +499,20 @@ function pressEscape(overlay) {
   if (!cancel.defaultPrevented) /** @type {any} */ (overlay.el).close();
 }
 
-/** @param {Modal} overlay @returns {void} */
-function clickBackdrop(overlay) {
+/**
+ * A press and release on the backdrop: the `pointerdown` and the `click` both land on the dialog
+ * element, outside the panel's box.
+ * @param {Modal} overlay @param {any} [pressTarget=overlay.el] Where the press began.
+ * @returns {void}
+ */
+function clickBackdrop(overlay, pressTarget = overlay.el) {
   const rect = overlay.el.getBoundingClientRect();
+  const outside = { clientX: rect.left - 20, clientY: rect.top - 20 };
+  const down = new Event('pointerdown', { bubbles: true, cancelable: true });
+  Object.assign(down, pressTarget === overlay.el ? outside : { clientX: rect.left + 10, clientY: rect.top + 10 });
+  pressTarget.dispatchEvent(down);
   const event = new Event('click', { bubbles: true, cancelable: true });
-  Object.assign(event, { clientX: rect.left - 20, clientY: rect.top - 20 });
+  Object.assign(event, outside);
   overlay.el.dispatchEvent(event);
 }
 

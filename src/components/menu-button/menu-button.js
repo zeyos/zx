@@ -4,8 +4,10 @@ import { uid } from '../../core/util.js';
 import { icon } from '../../core/icons.js';
 import { rovingTabindex, typeahead } from '../../core/keyboard.js';
 import {
+  applyCheckedState,
   isMenuItem,
   MENU_ITEM_SELECTOR,
+  nextCheckedState,
   renderMenuEntries
 } from '../../internal/menu-items.js';
 import { Dropdown } from '../dropdown/dropdown.js';
@@ -19,9 +21,17 @@ import { Dropdown } from '../dropdown/dropdown.js';
  * @property {'default'|'primary'|'danger'|'ghost'} [kind='default'] Trigger button kind.
  * @property {MenuButtonItem[]} [items=[]] Menu items and separators.
  * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'} [placement='bottom-start'] Menu placement.
- * @property {(event: CustomEvent<{value: unknown, item: MenuItem}>) => void} [onselect] Select event listener.
+ * @property {(event: CustomEvent<MenuButtonSelectDetail>) => void} [onselect] Select event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close event listener.
+ */
+
+/**
+ * @typedef {Object} MenuButtonSelectDetail
+ * @property {unknown} value The chosen item's value.
+ * @property {MenuItem} item The chosen item, as the application gave it.
+ * @property {boolean} [checked] For a `menuitemcheckbox` or `menuitemradio`, the state choosing it
+ *   gives the item: a checkbox toggles, a radio is checked. Absent for a plain item.
  */
 
 /**
@@ -37,6 +47,11 @@ import { Dropdown } from '../dropdown/dropdown.js';
  * Choosing an item closes the menu and puts focus back on the trigger before the `select` event
  * and the item's `onselect` run, so whatever they open — a dialog, a sheet — records the trigger
  * as the place to return to, and focus they move themselves stays where they put it.
+ *
+ * Choosing a `menuitemcheckbox` toggles its `aria-checked`, and choosing a `menuitemradio` checks
+ * it and unchecks the other radio items of its section (between separators or headings); the new
+ * state arrives as `detail.checked`. A `select` listener that prevents the event keeps the state as
+ * it was, and one that calls `setItems()` renders the state it wants instead.
  * @fires MenuButton#select
  * @fires MenuButton#open
  * @fires MenuButton#close
@@ -391,13 +406,19 @@ export class MenuButton extends Component {
     const active = document.activeElement;
     const reclaim = Boolean(target) && (!active || active === document.body || this.#panel.contains(active));
     if (reclaim) target?.focus();
-    const selected = this.emit('select', { value: item.value, item });
+    const entries = this.#items;
+    const checked = nextCheckedState(item, element.getAttribute('aria-checked') === 'true');
+    const selected = this.emit('select', checked === undefined
+      ? { value: item.value, item }
+      : { value: item.value, item, checked });
     if (selected.defaultPrevented) {
       event?.preventDefault();
       // The menu stays open, so focus returns to the item, unless a listener has moved it again.
       if (reclaim && document.activeElement === target && element instanceof HTMLElement) element.focus();
       return;
     }
+    // A listener that replaced the items has rendered the state it wants already.
+    if (checked !== undefined && this.#items === entries) applyCheckedState(this.#panel, entries, index, checked);
     try {
       item.onselect?.(item.value, item, this);
     } finally {
@@ -423,9 +444,10 @@ export class MenuButton extends Component {
 }
 
 /**
- * Fired when an enabled item is activated.
+ * Fired when an enabled item is activated. Preventing it keeps the menu open and a checkbox or
+ * radio item's state unchanged.
  * @event MenuButton#select
- * @type {CustomEvent<{value: unknown, item: MenuItem}>}
+ * @type {CustomEvent<MenuButtonSelectDetail>}
  */
 
 /**

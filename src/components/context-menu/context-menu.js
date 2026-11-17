@@ -2,8 +2,10 @@ import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
 import { rovingTabindex, typeahead } from '../../core/keyboard.js';
 import {
+  applyCheckedState,
   isMenuItem,
   MENU_ITEM_SELECTOR,
+  nextCheckedState,
   renderMenuEntries
 } from '../../internal/menu-items.js';
 import { Dropdown } from '../dropdown/dropdown.js';
@@ -24,10 +26,18 @@ import { Dropdown } from '../dropdown/dropdown.js';
  * @property {string|null} [selector=null] Restricts the menu to descendants matching this
  *   selector, and reports the matched element as the context of the selection. A table passes
  *   `'tbody tr'` here to get a per-row menu from one listener.
- * @property {(event: CustomEvent<{value: unknown, item: MenuItem, context: Element|null}>) => void} [onselect]
- *   Selection listener.
+ * @property {(event: CustomEvent<ContextMenuSelectDetail>) => void} [onselect] Selection listener.
  * @property {(event: CustomEvent<{context: Element|null}>) => void} [onopen] Open listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close listener.
+ */
+
+/**
+ * @typedef {Object} ContextMenuSelectDetail
+ * @property {unknown} value The chosen item's value.
+ * @property {MenuItem} item The chosen item, as the application gave it.
+ * @property {Element|null} context The element the menu was opened on.
+ * @property {boolean} [checked] For a `menuitemcheckbox` or `menuitemradio`, the state choosing it
+ *   gives the item: a checkbox toggles, a radio is checked. Absent for a plain item.
  */
 
 /**
@@ -42,6 +52,11 @@ import { Dropdown } from '../dropdown/dropdown.js';
  * the focused element, and closing returns focus to where it came from. Pointer-only context
  * menus are a common accessibility failure, so both routes are wired here rather than left to the
  * application.
+ *
+ * Choosing a `menuitemcheckbox` toggles its `aria-checked`, and choosing a `menuitemradio` checks
+ * it and unchecks the other radio items of its section (between separators or headings); the new
+ * state arrives as `detail.checked`. A prevented `select` keeps the state as it was. Items given as
+ * a function are resolved again on every opening, so there the function's answer is the state.
  *
  * Note that the component's root is the anchor, which lives on `<body>` — so the bubbling `zx-*`
  * DOM events land there, not in the target's tree. Listen with `on('select')` or `onselect`.
@@ -232,7 +247,8 @@ export class ContextMenu extends Component {
     root.style.left = `${x}px`;
     root.style.top = `${y}px`;
     this.#context = context;
-    this.#returnFocus = document.activeElement;
+    // Reopened while open, focus is already in the menu: it still returns where it came from.
+    if (!this.isOpen()) this.#returnFocus = document.activeElement;
     this.#dropdown.open();
     this.#roving.focusFirst();
     this.emit('open', { context });
@@ -240,6 +256,7 @@ export class ContextMenu extends Component {
 
   /** @param {Event} event @returns {void} */
   #onContextMenu(event) {
+    if (this.#fromPanel(event)) return;
     const pointer = /** @type {PointerEvent & {target: Element}} */ (event);
     const context = this.#contextFor(pointer.target);
     // Only take over the platform menu once there is something of our own to show — and resolve
@@ -253,11 +270,23 @@ export class ContextMenu extends Component {
   #onTargetKeydown(event) {
     const key = /** @type {KeyboardEvent} */ (event);
     if (key.key !== 'ContextMenu' && !(key.key === 'F10' && key.shiftKey)) return;
+    if (this.#fromPanel(event)) return;
     const context = this.#contextFor(/** @type {Element} */ (key.target));
     if (!context || !this.#prepare(context)) return;
     event.preventDefault();
     const box = context.getBoundingClientRect();
     this.#openResolved(box.left, box.bottom, context);
+  }
+
+  /**
+   * Whether an event on the target began inside the menu's own panel. A target that is itself a
+   * theme scope hosts the panel, so a right-click or Shift+F10 inside the open menu bubbles to the
+   * target, and is not a request for a menu on it.
+   * @param {Event} event Event heard on the target.
+   * @returns {boolean}
+   */
+  #fromPanel(event) {
+    return this.#panel.contains(/** @type {Node|null} */ (event.target));
   }
 
   /**
@@ -303,12 +332,18 @@ export class ContextMenu extends Component {
     const reclaim = restore instanceof HTMLElement && restore.isConnected && this.#ownsFocus();
     // A dialog opened by a callback records the invoking control as its opener.
     if (reclaim) restore.focus();
-    const selected = this.emit('select', { value: item.value, item, context });
+    const entries = this.#items;
+    const checked = nextCheckedState(item, element.getAttribute('aria-checked') === 'true');
+    const selected = this.emit('select', checked === undefined
+      ? { value: item.value, item, context }
+      : { value: item.value, item, context, checked });
     if (selected.defaultPrevented) {
       event?.preventDefault();
       if (reclaim && document.activeElement === restore && element instanceof HTMLElement) element.focus();
       return;
     }
+    // A listener that replaced the items has rendered the state it wants already.
+    if (checked !== undefined && this.#items === entries) applyCheckedState(this.#panel, entries, index, checked);
     try {
       item.onselect?.(item.value, item, this);
     } finally {
@@ -330,8 +365,9 @@ export class ContextMenu extends Component {
 
 /**
  * Fired when an enabled item is activated. `context` is the element the menu was opened on.
+ * Preventing it keeps the menu open and a checkbox or radio item's state unchanged.
  * @event ContextMenu#select
- * @type {CustomEvent<{value: unknown, item: MenuItem, context: Element|null}>}
+ * @type {CustomEvent<ContextMenuSelectDetail>}
  */
 
 /**
