@@ -92,7 +92,7 @@ test('a kit script the page already loaded is adopted without waiting for a load
   });
   // Self-hosted, so no FontAwesomeKitConfig global: its finished fetch says it has run.
   performance.getEntriesByName = (name, type) => name === script.src && type === 'resource'
-    ? /** @type {any} */ ([{ initiatorType: 'script', responseEnd: 12 }]) : [];
+    ? /** @type {any} */ ([{ initiatorType: 'script', responseEnd: 12, responseStatus: 200, decodedBodySize: 4096 }]) : [];
   try {
     const settled = await Promise.race([
       loadFontAwesomeKit('/vendor/fontawesome/kit.js').then(() => 'resolved'),
@@ -119,10 +119,15 @@ test('a kit script still loading after the document finished is waited for', asy
     baseURI: 'https://assets.example/app/', scripts: [script], readyState: 'complete',
     createElement: () => { throw new Error('the existing script must be adopted, not duplicated'); }
   });
-  // An earlier fetch() of the same URL says nothing about the script element having run.
+  // An earlier fetch() of the same URL, or a failed earlier attempt by a script element (a retry),
+  // says nothing about this script having run.
   const lookup = performance.getEntriesByName;
   performance.getEntriesByName = (name, type) => name === script.src && type === 'resource'
-    ? /** @type {any} */ ([{ initiatorType: 'fetch', responseEnd: 9 }]) : [];
+    ? /** @type {any} */ ([
+      { initiatorType: 'fetch', responseEnd: 9, responseStatus: 200, decodedBodySize: 4096 },
+      { initiatorType: 'script', responseEnd: 11, responseStatus: 503, decodedBodySize: 120 },
+      { initiatorType: 'script', responseEnd: 12, decodedBodySize: 0 }
+    ]) : [];
   try {
     const load = loadFontAwesomeKit('/vendor/fontawesome/late.js').then(() => 'resolved');
     const early = await Promise.race([load, new Promise((done) => setTimeout(() => done('pending'), 30))]);

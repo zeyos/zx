@@ -189,8 +189,9 @@ export function loadFontAwesomeKit(kit) {
 
 /**
  * Whether a script already on the page has visibly finished: Font Awesome's kit config or API is
- * defined, or the browser recorded a completed fetch of that URL made by a script element — not by
- * `fetch()` or a preload, which say nothing about the script having run.
+ * defined, or the browser recorded a successful load of that URL by a script element — not a
+ * `fetch()` or a preload, which say nothing about the script having run, and not a failed attempt,
+ * which a retry would otherwise be mistaken for.
  * @param {string} url Absolute script URL.
  * @returns {boolean}
  */
@@ -198,8 +199,12 @@ function scriptHasLoaded(url) {
   if (globalThis.FontAwesomeKitConfig || globalThis.FontAwesome) return true;
   try {
     return globalThis.performance?.getEntriesByName?.(url, 'resource').some((entry) => {
-      const timing = /** @type {PerformanceResourceTiming} */ (entry);
-      return timing.initiatorType === 'script' && timing.responseEnd > 0;
+      const timing = /** @type {PerformanceResourceTiming & {responseStatus?: number}} */ (entry);
+      if (timing.initiatorType !== 'script' || !(timing.responseEnd > 0)) return false;
+      // The status where the browser reports one; otherwise a body that arrived.
+      return typeof timing.responseStatus === 'number' && timing.responseStatus > 0
+        ? timing.responseStatus >= 200 && timing.responseStatus < 300
+        : timing.decodedBodySize > 0;
     }) ?? false;
   } catch {
     return false;
