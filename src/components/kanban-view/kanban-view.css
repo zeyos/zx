@@ -810,6 +810,27 @@
   color: var(--zx-color-text-muted);
 }
 
+/* An agent is its own silhouette: no disc, no ring, and no overlap, so no face cuts into another. */
+.zx-kanban-view__avatar[data-agent] {
+  overflow: visible;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+
+.zx-kanban-view__avatar[data-agent],
+.zx-kanban-view__avatar[data-agent] + .zx-kanban-view__avatar {
+  margin-inline-start: 1px;
+}
+
+.zx-kanban-view__avatars > .zx-kanban-view__avatar[data-agent]:first-child {
+  margin-inline-start: 0;
+}
+
+.zx-kanban-view__avatar[data-agent] > .zx-agent-avatar {
+  --zx-agent-avatar-size: 1.5rem;
+}
+
 .zx-kanban-view__avatar-image {
   inline-size: 100%;
   block-size: 100%;

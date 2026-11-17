@@ -5,10 +5,14 @@ function minutesAgo(minutes) {
   return new Date(Date.now() - minutes * 60_000);
 }
 
-// A run in progress, as the application keeps it: what it is doing in one sentence, the steps,
-// the clock, the tokens and what they cost against the run's budget.
+// The agent whose run it is, keyed by its stable id so a renamed agent keeps its face.
+const FINANCE_AGENT = { seed: 'agt-finance', name: 'Finance agent', tone: 'violet', material: 'soft' };
+
+// A run in progress, as the application keeps it: who runs it, what it is doing in one sentence,
+// the steps, the clock, the tokens and what they cost against the run's budget.
 function runningRun() {
   return {
+    agent: FINANCE_AGENT,
     state: 'running',
     summary: 'Reading the dunning policy…',
     steps: { done: 2, total: 6 },
@@ -105,7 +109,9 @@ export default {
     {
       title: 'A running run',
       blurb: 'While the state is running, the working time counts on once a second from workMs. '
-        + 'update() merges new values: the clock carries on unless the update brings a new workMs.',
+        + 'update() merges new values: the clock carries on unless the update brings a new workMs. '
+        + 'agent draws the agent’s face before the state, with the run’s expression: working now, '
+        + 'at rest once the run is done.',
       layout: 'stack',
       width: '360px',
       render: ({ cleanup, log }) => {

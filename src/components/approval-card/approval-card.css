@@ -71,6 +71,12 @@
 .zx-approval-card__tile[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
 .zx-approval-card__tile[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
 
+/* An agent's face stands on its own: no tile behind it. */
+.zx-approval-card__tile[data-agent] {
+  border-radius: 0;
+  background: none;
+}
+
 .zx-approval-card__titles {
   display: grid;
   grid-area: titles;

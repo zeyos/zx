@@ -6,7 +6,8 @@ import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { isEditableTarget } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
-import { STATUS } from '../../internal/agent-model.js';
+import { RUN_ACTIVITY, STATUS, agentFaceTraits } from '../../internal/agent-model.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { renderBlocks } from '../block-view/block-view.js';
 import { button } from '../button/button.js';
 import { Dialog } from '../dialog/dialog.js';
@@ -16,6 +17,7 @@ import { statusIcon } from '../select/glyphs.js';
 
 /** @typedef {import('../../internal/agent-model.js').Block} Block */
 /** @typedef {import('../field/field.js').FieldOptions} FieldOptions */
+/** @typedef {import('../../internal/agent-model.js').AgentFace} AgentFace */
 
 /**
  * Where a request stands: waiting for an answer, or answered — approved, rejected, or expired
@@ -48,6 +50,10 @@ import { statusIcon } from '../select/glyphs.js';
  * @property {string} [description=''] One line under the title: what follows from approving.
  * @property {string|null} [icon=null] Icon name for the tile beside the title; none when null.
  * @property {ApprovalTone} [tone='blue'] Categorical tone of the icon tile.
+ * @property {AgentFace|true|null} [agent=null] The agent that asks, drawn as its AgentAvatar face in
+ *   place of the icon tile: its traits and name, or `true` to derive the face from the title. The
+ *   face looks up at you while the request waits and rests once it is answered; it is decorative,
+ *   so the title and description say what is asked.
  * @property {2|3|4|5|6} [headingLevel=3] Element level of the title heading.
  * @property {ApprovalStatus} [status='pending'] Where the request stands.
  * @property {Node|Block[]|null} [details=null] What will happen — recipients, amounts, records —
@@ -86,7 +92,7 @@ import { statusIcon } from '../select/glyphs.js';
 /**
  * What `update()` changes: any of these options, the rest staying as they are. The status goes
  * through `setStatus()`.
- * @typedef {Pick<ApprovalCardOptions, 'title'|'description'|'icon'|'tone'|'details'|'preview'
+ * @typedef {Pick<ApprovalCardOptions, 'title'|'description'|'icon'|'tone'|'agent'|'details'|'preview'
  *   |'fields'|'values'|'confirmText'|'reason'|'edited'|'editedKeys'>} ApprovalCardUpdate
  */
 
@@ -191,6 +197,7 @@ export class ApprovalCard extends Component {
     description: '',
     icon: null,
     tone: 'blue',
+    agent: null,
     headingLevel: 3,
     status: 'pending',
     details: null,
@@ -245,6 +252,10 @@ export class ApprovalCard extends Component {
     /** @type {string|null} */
     this._icon = textOrNull(options.icon);
     this._tone = normalizeTone(options.tone);
+    /** @type {Record<string, string>|null} The face asked for, as traits; it wins over the icon. */
+    this._face = options.agent == null ? null : agentFaceTraits(options.agent);
+    /** @type {AgentAvatar|null} */
+    this._avatar = null;
     this._confirmText = confirmTextOf(options.confirmText);
     /** @type {unknown} What `details` was drawn from, to compare an update against. */
     this._details = null;
@@ -348,12 +359,14 @@ export class ApprovalCard extends Component {
         this._drawDescription();
       }
     }
-    if (has('icon') || has('tone')) {
+    if (has('icon') || has('tone') || has('agent')) {
       const name = has('icon') ? textOrNull(partial.icon) : this._icon;
       const tone = has('tone') ? normalizeTone(partial.tone) : this._tone;
-      if (name !== this._icon || tone !== this._tone) {
+      const face = has('agent') ? (partial.agent == null ? null : agentFaceTraits(partial.agent)) : this._face;
+      if (name !== this._icon || tone !== this._tone || !sameValue(face, this._face)) {
         this._icon = name;
         this._tone = tone;
+        this._face = face;
         this._drawTile();
       }
     }
@@ -502,6 +515,8 @@ export class ApprovalCard extends Component {
     this._destroyed = true;
     this._confirm?.destroy();
     this._confirm = null;
+    this._avatar?.destroy();
+    this._avatar = null;
     if (this._editor) {
       this._editor.fieldset.destroy();
       this._editor.dialog.destroy();
@@ -812,17 +827,35 @@ export class ApprovalCard extends Component {
     return this._by ?? this.msg('approvalCard.you');
   }
 
-  /** @private @returns {void} Draws the icon tile, or takes it away when there is no icon. */
+  /**
+   * Draws the icon tile — or the agent's face, which takes its place — or takes it away when there
+   * is neither.
+   * @private
+   * @returns {void}
+   */
   _drawTile() {
     const name = this._icon;
-    if (!name) {
+    const face = this._face;
+    this._avatar?.destroy();
+    this._avatar = null;
+    if (!name && !face) {
       this._tileEl?.remove();
       this._tileEl = null;
       return;
     }
     const tile = this._tileEl ?? h('span', { class: 'zx-approval-card__tile', 'aria-hidden': 'true' });
     tile.dataset.tone = this._tone;
-    tile.replaceChildren(icon(name, { size: 14 }));
+    if (face) {
+      tile.dataset.agent = '';
+      this._avatar = new AgentAvatar(null, {
+        ...face, name: face.name ?? this._title, size: 'sm', label: null, indicator: false, animate: false,
+        activity: this._faceActivity()
+      });
+      tile.replaceChildren(this._avatar.toElement());
+    } else {
+      delete tile.dataset.agent;
+      tile.replaceChildren(icon(/** @type {string} */ (name), { size: 14 }));
+    }
     if (!this._tileEl) this._headEl.prepend(tile);
     this._tileEl = tile;
   }
@@ -913,6 +946,17 @@ export class ApprovalCard extends Component {
   _sync() {
     this._drawState();
     this._drawChanges();
+    this._avatar?.setActivity(this._faceActivity());
+  }
+
+  /**
+   * The expression of the agent's face: the one a run takes in the state the status is drawn as —
+   * looking up at you while the request waits, at rest once it is answered.
+   * @private
+   * @returns {import('../../internal/agent-model.js').AgentActivity}
+   */
+  _faceActivity() {
+    return RUN_ACTIVITY[APPROVAL_STATES[this._status]];
   }
 
   /**

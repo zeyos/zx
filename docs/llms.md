@@ -1043,7 +1043,9 @@ yet: an optional decorative icon, a headline, a sentence, and optional actions. 
 paragraph rather than a heading, so dropping one into a Table's empty slot or a Panel body never
 disturbs the page's heading outline.
 
-- **Options** — `icon` (an icon name, `null` for none; default `'folder-open'`), `title`,
+- **Options** — `icon` (an icon name, `null` for none; default `'folder-open'`), `agent`
+  (`{seed?, name?, tone?, body?, eyes?, material?}` or `true`: an agent's AgentAvatar face, at rest,
+  in place of the icon — an empty conversation, an agent with nothing to do yet), `title`,
   `description`, `actions: [Element | buttonOptions]`, `size: 'md'|'sm'`, `align: 'center'|'start'`.
 - **Methods** — none. `emptyState(options)` → `HTMLDivElement`, which you own and place yourself.
 - **Events** — none; action buttons carry their own `onclick`.
@@ -1351,6 +1353,12 @@ Avatar.
   name; Composer mention items and Launcher items take `agent` too; AgentThread and RunTrace authors and ActivityItem
   avatar descriptors take `face`. Only a
   face's trait strings are read, so agent-supplied data cannot animate or name it.
+- **Elsewhere** — `emptyState()`, ApprovalCard and RunStatus take `agent` (traits and `name`, or
+  `true`) in place of their icon: still and decorative, ApprovalCard's face looking up at you while
+  the request waits, RunStatus's with the run's expression. KanbanView assignee descriptors take
+  `face`, so an agent on a card's team is drawn as its face. The thread adapters
+  (`connectAgUi()`, `connectUiMessageStream()`) draw the faces the thread's own `authors` give.
+  Message `leading` and Card `media` accept an AgentAvatar like any other component.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.
 <!-- /doc -->
@@ -2663,7 +2671,8 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   and action controls reveal on hover/focus/selection/grab, and remain visible on touch devices.
 - **Assignees** — `assignees` faces (a name, names, or `{name, src?, initials?, tone?}`) are drawn
   like a small Avatar: initials on the tint `avatarTone(name)` picks, so a person has the same
-  colour on the board as in every Avatar; a descriptor's own `tone` wins.
+  colour on the board as in every Avatar; a descriptor's own `tone` wins. A descriptor with `face`
+  (AgentAvatar traits, or `true`) is an agent, drawn as its generated face.
 - **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
   cancelable and fires before a commit/request; either the component event or bubbling
   `zx-recordmove` mirror may veto it. `accept` is a hard eligibility gate; WIP is visual advice.
@@ -4195,7 +4204,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
 Draws a server's AI SDK UI message stream (the response header `x-vercel-ai-ui-message-stream: v1`;
 `UI_MESSAGE_STREAM_VERSION` is the version implemented) in a thread. The application keeps the
 request, the event source, retries, and authentication: it strips the `data: ` framing and the
-`[DONE]` sentinel, and hands each parsed part to `handle()`.
+`[DONE]` sentinel, and hands each parsed part to `handle()`. Authors are drawn from the thread's own
+`authors`: an agent given a `face` there is drawn as its AgentAvatar in every item the stream
+writes, and the stream can never set or change one.
 
 ```js
 const stream = connectUiMessageStream(thread, {
@@ -4289,7 +4300,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
 
 `connectAgUi()` draws an [AG-UI](https://docs.ag-ui.com) event stream in a thread. It implements
 AG-UI `AG_UI_VERSION` (`'1.0'`). It takes events already parsed — the application keeps the
-transport, retries and authentication — and returns `{handle(event), state(), destroy()}`.
+transport, retries and authentication — and returns `{handle(event), state(), destroy()}`. As with
+the UI message stream, faces come from the thread's own `authors`, never from the events, and a
+`runStatus` given an `agent` keeps it while the run's states change its expression.
 
 ```js
 const status = new RunStatus(null, { compact: true });
@@ -4534,8 +4547,10 @@ announces nothing itself; the thread the run belongs to announces its milestones
   sentence, text only), `steps: {done, total}|null`, `started`, `finished` and `waitingSince`
   (local ISO date-time strings or `Date`s), `workMs` (milliseconds worked; the row shows only when
   it is a number), `tokens: [in, out]|number|null` (the pair, or the total as one number),
-  `tokenBudget: number|null`, `cost: {amount, budget?, currency}|null`, `model`,
-  `actions: [{label, kind?, icon?, onclick?}]`, `ticking: true`, `compact: false|true|'icon'`,
+  `tokenBudget: number|null`, `cost: {amount, budget?, currency}|null`, `model`, `agent`
+  (`{seed?, name?, tone?, body?, eyes?, material?}` or `true`: the agent's face before the state,
+  working while it runs, looking up while it waits, blocked when blocked or failed, at rest
+  otherwise; the compact pill leaves it out), `actions: [{label, kind?, icon?, onclick?}]`, `ticking: true`, `compact: false|true|'icon'`,
   `now: (() => Date)|null`, `locale`, and `msg` (the `agent.status.*` words and the `runStatus.*`
   labels).
 - **Rendering** — the state line; the summary; a `role="progressbar"` whose `aria-valuetext` reads
@@ -4722,7 +4737,9 @@ into the record of what was decided, by whom, and when. The card never acts on i
 the answer, and the application carries it out.
 
 - **Options** — `title`, `description`, `icon: null` (an icon name for the tinted tile), `tone:
-  'blue'` (`slate|blue|teal|green|amber|orange|red|pink|violet`), `headingLevel: 3`,
+  'blue'` (`slate|blue|teal|green|amber|orange|red|pink|violet`), `agent: null` (the asking
+  agent's AgentAvatar face in place of the tile — `{seed?, name?, tone?, body?, eyes?, material?}`
+  or `true`; it looks up at you while the request waits and rests once answered), `headingLevel: 3`,
   `status: 'pending'|'approved'|'rejected'|'expired'`, `details: Node|Block[]|null` (recipients,
   amounts, records), `preview: {label, content: Node|Block[]}|null` (behind a disclosure; `blocks`
   is accepted for `content`, as the thread model spells it), `fields: Record<string,
@@ -4741,7 +4758,7 @@ the answer, and the application carries it out.
   the values. `changed` names the fields this save changed. `editedKeys` is the union the card
   will list (null when it lists every field), so the application can store it with the record.
   Prevent an answer to refuse or defer it, then settle the card with `setStatus()`.
-- **Methods** — `update(partial)` changes any of `title`, `description`, `icon`, `tone`,
+- **Methods** — `update(partial)` changes any of `title`, `description`, `icon`, `tone`, `agent`,
   `details`, `preview`, `fields`, `values`, `confirmText`, `reason`, `edited`, `editedKeys` in
   place (see below); `setStatus(status, {by?, at?, reason?})` (emits nothing; `at` defaults to
   now; closes any of the card's open dialogs), `getStatus()`, `getValues()` (a copy, edits

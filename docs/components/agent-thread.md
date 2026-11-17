@@ -94,7 +94,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
 Draws a server's AI SDK UI message stream (the response header `x-vercel-ai-ui-message-stream: v1`;
 `UI_MESSAGE_STREAM_VERSION` is the version implemented) in a thread. The application keeps the
 request, the event source, retries, and authentication: it strips the `data: ` framing and the
-`[DONE]` sentinel, and hands each parsed part to `handle()`.
+`[DONE]` sentinel, and hands each parsed part to `handle()`. Authors are drawn from the thread's own
+`authors`: an agent given a `face` there is drawn as its AgentAvatar in every item the stream
+writes, and the stream can never set or change one.
 
 ```js
 const stream = connectUiMessageStream(thread, {
@@ -188,7 +190,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
 
 `connectAgUi()` draws an [AG-UI](https://docs.ag-ui.com) event stream in a thread. It implements
 AG-UI `AG_UI_VERSION` (`'1.0'`). It takes events already parsed — the application keeps the
-transport, retries and authentication — and returns `{handle(event), state(), destroy()}`.
+transport, retries and authentication — and returns `{handle(event), state(), destroy()}`. As with
+the UI message stream, faces come from the thread's own `authors`, never from the events, and a
+`runStatus` given an `agent` keeps it while the run's states change its expression.
 
 ```js
 const status = new RunStatus(null, { compact: true });

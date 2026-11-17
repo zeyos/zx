@@ -10,7 +10,9 @@ into the record of what was decided, by whom, and when. The card never acts on i
 the answer, and the application carries it out.
 
 - **Options** — `title`, `description`, `icon: null` (an icon name for the tinted tile), `tone:
-  'blue'` (`slate|blue|teal|green|amber|orange|red|pink|violet`), `headingLevel: 3`,
+  'blue'` (`slate|blue|teal|green|amber|orange|red|pink|violet`), `agent: null` (the asking
+  agent's AgentAvatar face in place of the tile — `{seed?, name?, tone?, body?, eyes?, material?}`
+  or `true`; it looks up at you while the request waits and rests once answered), `headingLevel: 3`,
   `status: 'pending'|'approved'|'rejected'|'expired'`, `details: Node|Block[]|null` (recipients,
   amounts, records), `preview: {label, content: Node|Block[]}|null` (behind a disclosure; `blocks`
   is accepted for `content`, as the thread model spells it), `fields: Record<string,
@@ -29,7 +31,7 @@ the answer, and the application carries it out.
   the values. `changed` names the fields this save changed. `editedKeys` is the union the card
   will list (null when it lists every field), so the application can store it with the record.
   Prevent an answer to refuse or defer it, then settle the card with `setStatus()`.
-- **Methods** — `update(partial)` changes any of `title`, `description`, `icon`, `tone`,
+- **Methods** — `update(partial)` changes any of `title`, `description`, `icon`, `tone`, `agent`,
   `details`, `preview`, `fields`, `values`, `confirmText`, `reason`, `edited`, `editedKeys` in
   place (see below); `setStatus(status, {by?, at?, reason?})` (emits nothing; `at` defaults to
   now; closes any of the card's open dialogs), `getStatus()`, `getValues()` (a copy, edits

@@ -5,9 +5,14 @@ import {
 
 // Who takes part: the person reading (`me`) and the agent. An agent's `via` names the model it
 // answers through.
+// The agent's `face` draws it as its generated AgentAvatar wherever it writes — in every example,
+// the adapters' included — seeded by its stable id so a rename keeps it.
 const AUTHORS = {
   me: { name: 'Hanna Weber', kind: 'person' },
-  finance: { name: 'Finance agent', kind: 'agent', tone: 'violet', via: 'Large, EU-hosted', activity: 'needs-you' }
+  finance: {
+    name: 'Finance agent', kind: 'agent', tone: 'violet', via: 'Large, EU-hosted', activity: 'needs-you',
+    face: { seed: 'agt-finance', tone: 'violet', material: 'soft' }
+  }
 };
 
 // A conversation is plain JSON — the same items an agent run produces and an application stores.

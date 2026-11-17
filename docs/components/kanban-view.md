@@ -26,7 +26,8 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   and action controls reveal on hover/focus/selection/grab, and remain visible on touch devices.
 - **Assignees** — `assignees` faces (a name, names, or `{name, src?, initials?, tone?}`) are drawn
   like a small Avatar: initials on the tint `avatarTone(name)` picks, so a person has the same
-  colour on the board as in every Avatar; a descriptor's own `tone` wins.
+  colour on the board as in every Avatar; a descriptor's own `tone` wins. A descriptor with `face`
+  (AgentAvatar traits, or `true`) is an agent, drawn as its generated face.
 - **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
   cancelable and fires before a commit/request; either the component event or bubbling
   `zx-recordmove` mirror may veto it. `accept` is a hard eligibility gate; WIP is visual advice.

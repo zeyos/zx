@@ -1,6 +1,8 @@
 // @ts-check
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { agentFaceTraits } from '../../internal/agent-model.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { AVATAR_TONES, avatarInitials, avatarTone } from '../avatar/avatar.js';
 import { badge } from '../badge/badge.js';
 
@@ -31,6 +33,9 @@ import { badge } from '../badge/badge.js';
  * @property {import('../avatar/avatar.js').AvatarTone} tone Fallback tint: a descriptor's own
  * `tone` when it names one of `AVATAR_TONES`, otherwise `avatarTone(name)` — the colour the same
  * person has in every Avatar.
+ * @property {Record<string, string>|null} face An agent's face traits — `seed`, `tone`, `body`,
+ * `eyes`, `material` — when the descriptor carries `face`; the card draws its AgentAvatar instead of
+ * initials or a picture.
  */
 
 /** Semantic intents an indicator may carry, in the order they are documented. */
@@ -137,6 +142,7 @@ export function createKanbanProgress(progress, label, valueText) {
  * resolve to the same shape, and an unsafe image URL degrades to initials rather than failing.
  * A descriptor may name its `tone`; otherwise the tone is derived from the name exactly as Avatar
  * derives it.
+ * A descriptor with `face` (AgentAvatar traits, or `true`) is an agent, drawn as its face.
  * @param {unknown} value Raw field value.
  * @returns {KanbanAssignee[]} Normalized people, in the order supplied.
  */
@@ -154,7 +160,9 @@ export function resolveKanbanAssignees(value) {
     const src = safeHref(source.src ?? source.image ?? null);
     const initials = source.initials == null ? avatarInitials(name) : String(source.initials);
     const tone = AVATAR_TONES.includes(source.tone) ? source.tone : avatarTone(name);
-    return { name, src, initials, tone };
+    // Records come from the server: a face contributes its trait strings and nothing else.
+    const face = source.face == null ? null : agentFaceTraits(source.face);
+    return { name, src, initials, tone, face };
   }).filter(Boolean));
 }
 
@@ -192,7 +200,12 @@ export function createKanbanAvatars(people, max, groupLabel, overflowLabel) {
   const shown = people.slice(0, split.shown);
   const hidden = split.hidden;
   // Each face carries its tone, so the initials sit on the tint the person has in every Avatar.
-  const faces = shown.map((person) => h('span', {
+  const faces = shown.map((person) => person.face ? h('span', {
+    class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined,
+    dataset: { agent: '' }
+  // A face at rest holds no listener and no loop entry, so it goes with the card that holds it.
+  }, new AgentAvatar(null, { ...person.face, name: person.name, size: 'sm', label: null, animate: false }).toElement())
+  : h('span', {
     class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined,
     dataset: { tone: person.tone ?? avatarTone(person.name) }
   }, person.src

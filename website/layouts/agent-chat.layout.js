@@ -575,7 +575,7 @@ export default {
       now: clock,
       formatTime: clockTime,
       emptyState: {
-        icon: 'robot',
+        agent: { ...AGENT_FACE, name: AGENT.name },
         title: 'What should the finance agent do?',
         description: `${AGENT.description} It asks before it sends anything.`,
         actions: SUGGESTIONS.map((text) => ({ label: text, onclick: () => send(text, []) }))
@@ -606,12 +606,14 @@ export default {
 
     /* --------------------------------------------------------------------- run -- */
 
-    const runStatus = keep(new RunStatus(null, { ticking: !preview, model: MODEL, now: clock }));
+    const runStatus = keep(new RunStatus(null, {
+      ticking: !preview, model: MODEL, now: clock, agent: { ...AGENT_FACE, name: AGENT.name }
+    }));
     // Each step shows what it stands for in the thread.
     const runSteps = keep(new RunTrace(null, { open: true, summary: false, showArguments: false, selectable: true }));
     const runSources = keep(new SourceList(null, { label: '', layout: 'list' }));
     const noRun = h('div', { class: 'panel-block' }, emptyState({
-      icon: 'robot', title: 'No run yet', size: 'sm',
+      agent: { ...AGENT_FACE, name: AGENT.name }, title: 'No run yet', size: 'sm',
       description: 'Send a request and the run shows here: every step, what it read, and what it cost.'
     }));
     const stateBlock = h('div', { class: 'panel-block' }, runStatus.toElement());

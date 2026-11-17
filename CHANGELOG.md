@@ -27,6 +27,9 @@ from a framework.
   control's accessible name, and so do Composer mention items and Launcher items. AgentThread and RunTrace authors and
   ActivityItem avatar descriptors take `face`. The Agent workspace layout draws its
   agents with AgentAvatar.
+- **Agents in place of icons.** `emptyState()`, ApprovalCard and RunStatus take `agent` and draw
+  the agent's face where they drew an icon — ApprovalCard's looks up at you while the request waits,
+  RunStatus's takes the run's expression — and KanbanView assignee descriptors take `face`.
 - **Pagination: Auto page size.** `pageSize: 'auto'`, and `'auto'` among `pageSizes` ("Auto (14)"
   in the select), fits the page to `viewport` — the rows that fit below its sticky header — and
   refits when the viewport or its rows change size, keeping the page's first row. `rowHeight`,

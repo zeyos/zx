@@ -391,13 +391,13 @@
         "name": "runStatus",
         "type": "{update: (values: Record<string, unknown>) => unknown}|null",
         "default": "null",
-        "description": "A RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an interrupt, or calls of the run still without a result), `stopped` (cancelled) or `failed`."
+        "description": "A RunStatus the run's lifecycle drives — its `agent` face, set by the application, takes each state's expression: `running` when it starts, `done`, `waiting` (an interrupt, or calls of the run still without a result), `stopped` (cancelled) or `failed`."
       },
       {
         "name": "authors",
         "type": "Record<string, Author>",
         "default": "{}",
-        "description": "The thread's authors. A text message whose `name` is one of their keys is written by that author; every other item by `agent`."
+        "description": "The thread's authors. A text message whose `name` is one of their keys is written by that author; every other item by `agent`. The thread draws them from its own `authors`, so an agent given a `face` there is drawn as its AgentAvatar in every item the adapter writes; the stream itself can never set or change a face."
       },
       {
         "name": "agent",
@@ -1448,6 +1448,17 @@
         "update": {
           "methods": [
             "update({ tone })"
+          ]
+        }
+      },
+      {
+        "name": "agent",
+        "type": "AgentFace|true|null",
+        "default": "null",
+        "description": "The agent that asks, drawn as its AgentAvatar face in place of the icon tile: its traits and name, or `true` to derive the face from the title. The face looks up at you while the request waits and rests once it is answered; it is decorative, so the title and description say what is asked.",
+        "update": {
+          "methods": [
+            "update({ agent })"
           ]
         }
       },
@@ -5691,6 +5702,12 @@
         "description": "Decorative icon name; null renders no icon."
       },
       {
+        "name": "agent",
+        "type": "AgentFace|true|null",
+        "default": "null",
+        "description": "Draws an agent's face in place of the icon — an empty conversation, an agent with nothing to do yet: its AgentAvatar traits and name, or `true` to derive the face from the title. Decorative and at rest, so the text says whose it is."
+      },
+      {
         "name": "title",
         "type": "string",
         "default": "''",
@@ -7786,7 +7803,7 @@
         "name": "assignees",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Responsible people; a name, a list, or descriptors.",
+        "description": "Responsible people; a name, a list, or descriptors (`{name, src?, initials?, tone?}`). A descriptor with `face` — AgentAvatar traits, or `true` — is an agent, drawn as its generated face.",
         "update": {
           "rebuild": true
         }
@@ -11556,6 +11573,17 @@
         "update": {
           "methods": [
             "update({ model })"
+          ]
+        }
+      },
+      {
+        "name": "agent",
+        "type": "AgentFace|true|null",
+        "default": "null",
+        "description": "The agent whose run this is, drawn as its AgentAvatar face before the state: its traits and name, or `true` to derive the face from the summary. The face takes the run's expression — working while it runs, looking up at you while it waits, blocked when blocked or failed, at rest otherwise. It is decorative, and the compact pill leaves it out.",
+        "update": {
+          "methods": [
+            "update({ agent })"
           ]
         }
       },
@@ -15773,7 +15801,7 @@
         "name": "authors",
         "type": "Record<string, Author>",
         "default": "{}",
-        "description": "Who writes; its first author who is not a person is the agent when `agent` is not given."
+        "description": "Who writes; its first author who is not a person is the agent when `agent` is not given. The thread draws authors from its own `authors`, so an agent given a `face` there is drawn as its AgentAvatar in every item the stream writes; the stream itself can never set or change a face."
       },
       {
         "name": "agent",

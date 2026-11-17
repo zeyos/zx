@@ -652,20 +652,29 @@ test('completion is measured against an explicit scale rather than a guessed one
 
 test('assignees accept a name, a list, or descriptors, and reject unsafe images', () => {
   assert.deepEqual(resolveKanbanAssignees('Ada Lovelace'),
-    [{ name: 'Ada Lovelace', src: null, initials: 'AL', tone: avatarTone('Ada Lovelace') }]);
+    [{ name: 'Ada Lovelace', src: null, initials: 'AL', tone: avatarTone('Ada Lovelace'), face: null }]);
   assert.deepEqual(resolveKanbanAssignees(['Ada Lovelace', '', null, 'Grace Hopper'])
     .map((person) => person.initials), ['AL', 'GH']);
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'https://example.test/a.png' }]),
-    [{ name: 'Ada', src: 'https://example.test/a.png', initials: 'A', tone: avatarTone('Ada') }]);
+    [{ name: 'Ada', src: 'https://example.test/a.png', initials: 'A', tone: avatarTone('Ada'), face: null }]);
   // A script URL degrades to initials instead of reaching an img src.
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'javascript:alert(1)' }]),
-    [{ name: 'Ada', src: null, initials: 'A', tone: avatarTone('Ada') }]);
+    [{ name: 'Ada', src: null, initials: 'A', tone: avatarTone('Ada'), face: null }]);
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', initials: 'ADA' }])[0].initials, 'ADA');
   assert.deepEqual(resolveKanbanAssignees(null), []);
   // A face nobody can name would render as an unidentified person in a group labelled
   // "Assigned to " — a picture without a person is worse than no picture.
   assert.deepEqual(resolveKanbanAssignees([{ src: 'https://example.test/ada.png' }]), []);
   assert.deepEqual(resolveKanbanAssignees([{ name: '   ' }]), []);
+});
+
+test('an assignee with a face is an agent, read for its trait strings only', () => {
+  const [agent] = resolveKanbanAssignees([{ name: 'Forecast agent', face: { seed: 'agt-forecast', material: 'soft', animate: true, label: 'x' } }]);
+  assert.deepEqual(agent.face, { seed: 'agt-forecast', material: 'soft' });
+  assert.deepEqual(resolveKanbanAssignees([{ name: 'Scout', face: true }])[0].face, {});
+  // A person and a malformed face stay initials.
+  assert.equal(resolveKanbanAssignees([{ name: 'Ada', face: 'yes' }])[0].face, null);
+  assert.equal(resolveKanbanAssignees('Ada')[0].face, null);
 });
 
 test('assignee faces take the tone Avatar derives from the name, or a descriptor tone', () => {

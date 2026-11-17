@@ -651,7 +651,7 @@ export default {
     }));
     tabs.toElement().classList.add('shell__tabs', 'canvas__tabs');
     const noArtifact = h('div', { class: 'shell__body canvas__empty' }, emptyState({
-      icon: 'layer-group', title: 'No artifact yet', size: 'sm',
+      agent: { ...AGENT_FACE, name: AGENT.name }, title: 'No artifact yet', size: 'sm',
       description: 'Every answer the agent gives is a surface. Open one here to see it beside its JSON and the reply it produced.'
     }));
     const aside = h('aside', { class: 'shell__aside canvas__panel', 'aria-label': 'Artifact panel' },

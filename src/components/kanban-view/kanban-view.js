@@ -160,7 +160,9 @@ import {
  * @property {Record<string,string>} [priorityTones={}] Maps a priority value to a semantic tone.
  * @property {KanbanCardField} [progress=null] Completion source; a number or `{value,max,label}`.
  * @property {number} [progressMax=100] Amount that counts as finished.
- * @property {KanbanCardField} [assignees=null] Responsible people; a name, a list, or descriptors.
+ * @property {KanbanCardField} [assignees=null] Responsible people; a name, a list, or descriptors
+ *   (`{name, src?, initials?, tone?}`). A descriptor with `face` — AgentAvatar traits, or `true` —
+ *   is an agent, drawn as its generated face.
  * @property {number} [maxAvatars=3] Faces drawn before the overflow chip.
  * @property {boolean} [multiMove=true] Move the whole selection when a selected card is picked up.
  * @property {boolean} [autoScroll=true] Scroll the board and columns while dragging near an edge.

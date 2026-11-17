@@ -102,10 +102,13 @@ const MAX_TOKEN = 512;
 /**
  * @typedef {Object} AgUiOptions
  * @property {{update: (values: Record<string, unknown>) => unknown}|null} [runStatus=null] A
- *   RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an
+ *   RunStatus the run's lifecycle drives — its `agent` face, set by the application, takes each
+ *   state's expression: `running` when it starts, `done`, `waiting` (an
  *   interrupt, or calls of the run still without a result), `stopped` (cancelled) or `failed`.
  * @property {Record<string, Author>} [authors={}] The thread's authors. A text message whose
- *   `name` is one of their keys is written by that author; every other item by `agent`.
+ *   `name` is one of their keys is written by that author; every other item by `agent`. The thread
+ *   draws them from its own `authors`, so an agent given a `face` there is drawn as its AgentAvatar
+ *   in every item the adapter writes; the stream itself can never set or change a face.
  * @property {string|null} [agent=null] The author key of the agent's output; the thread's first
  *   agent when null.
  * @property {((call: ToolCall) => unknown)|null} [requiresApproval=null] Asked once a call's

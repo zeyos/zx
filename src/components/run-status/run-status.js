@@ -4,11 +4,13 @@ import { formatDate, isSameDay } from '../../core/date.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatCurrency, formatNumber } from '../../core/format.js';
 import { getLanguage, printf } from '../../core/i18n.js';
-import { AGENT_MESSAGES, STATUS, formatElapsed, normalizeRunState } from '../../internal/agent-model.js';
+import { AGENT_MESSAGES, RUN_ACTIVITY, STATUS, agentFaceTraits, formatElapsed, normalizeRunState } from '../../internal/agent-model.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { button } from '../button/button.js';
 import { statusIcon } from '../select/glyphs.js';
 
 /** @typedef {import('../../internal/agent-model.js').RunState} RunState */
+/** @typedef {import('../../internal/agent-model.js').AgentFace} AgentFace */
 
 /**
  * A button beside the run's state, for what the reader can do about it now: "Review the request"
@@ -75,6 +77,11 @@ import { statusIcon } from '../select/glyphs.js';
  * tone from 80% and to the danger tone at 100%. Without one they stay text.
  * @property {RunCost|null} [cost=null] What the run has cost, against its budget.
  * @property {string|null} [model=null] The model the agent runs on.
+ * @property {AgentFace|true|null} [agent=null] The agent whose run this is, drawn as its AgentAvatar
+ *   face before the state: its traits and name, or `true` to derive the face from the summary. The
+ *   face takes the run's expression — working while it runs, looking up at you while it waits,
+ *   blocked when blocked or failed, at rest otherwise. It is decorative, and the compact pill
+ *   leaves it out.
  * @property {RunStatusAction[]} [actions=[]] Buttons under the summary.
  * @property {boolean} [ticking=true] While the state is `running`, the working time counts on
  * once a second from `workMs` and the moment of the last `update()`. One interval, which sleeps
@@ -106,6 +113,7 @@ import { statusIcon } from '../select/glyphs.js';
  * @property {number|null} tokenBudget
  * @property {RunCost|null} cost
  * @property {string|null} model
+ * @property {AgentFace|true|null} agent
  * @property {RunStatusAction[]} actions
  */
 
@@ -132,7 +140,7 @@ const MESSAGES = Object.freeze({
 
 /** The values `update()` merges; everything else is fixed at construction. */
 const VALUE_KEYS = Object.freeze(['state', 'summary', 'steps', 'started', 'finished', 'workMs', 'waitingSince',
-  'tokens', 'tokenBudget', 'cost', 'model', 'actions', 'ticking', 'compact']);
+  'tokens', 'tokenBudget', 'cost', 'model', 'agent', 'actions', 'ticking', 'compact']);
 
 /** The label of the "finished" row for each state that ends a run. */
 const FINISHED_KEYS = Object.freeze({
@@ -183,6 +191,7 @@ export class RunStatus extends Component {
     tokenBudget: null,
     cost: null,
     model: null,
+    agent: null,
     actions: [],
     ticking: true,
     compact: false,
@@ -207,6 +216,9 @@ export class RunStatus extends Component {
     /** @type {HTMLElement|null} The action row as drawn, kept across updates that leave it unchanged. */
     this._actionsEl = null;
     this._actionsKey = '';
+    /** @type {AgentAvatar|null} The agent's face, kept across draws while it asks for the same traits. */
+    this._avatar = null;
+    this._faceKey = '';
     /** Whether the root took `tabindex="-1"` to hold focus that had nowhere else to go. */
     this._heldFocus = false;
     /** @type {ReturnType<typeof setInterval>|0} */
@@ -258,6 +270,7 @@ export class RunStatus extends Component {
       tokenBudget: finiteOrNull(values.tokenBudget),
       cost: copyValue(values.cost) ?? null,
       model: values.model ?? null,
+      agent: copyValue(values.agent) ?? null,
       actions: Array.isArray(values.actions) ? [...values.actions] : []
     };
   }
@@ -268,6 +281,8 @@ export class RunStatus extends Component {
     this._destroyed = true;
     this._stopTicker();
     this._releaseFocus();
+    this._avatar?.destroy();
+    this._avatar = null;
     super.destroy();
     if (this._original) restoreTarget(this.el, this._original);
   }
@@ -310,7 +325,7 @@ export class RunStatus extends Component {
     const summary = values.summary == null ? '' : String(values.summary);
     const rows = this._rows(state);
     this._place([
-      h('p', { class: 'zx-run-status__state' }, ...this._stateParts(state)),
+      h('p', { class: 'zx-run-status__state' }, this._face(state, summary), ...this._stateParts(state)),
       summary ? h('p', { class: 'zx-run-status__summary' }, summary) : null,
       steps ? this._steps(steps) : null,
       this._actions(),
@@ -417,6 +432,29 @@ export class RunStatus extends Component {
     if (!this._heldFocus) return;
     this._heldFocus = false;
     this.el.removeAttribute('tabindex');
+  }
+
+  /**
+   * The agent's face with the run's expression: the one drawn before, while the traits it asks for
+   * stay the same, so a redraw never re-creates it.
+   * @private
+   * @param {RunState} state
+   * @param {string} summary What names the face when the agent option gives no name.
+   * @returns {Element|null}
+   */
+  _face(state, summary) {
+    const face = this._values.agent == null ? null : agentFaceTraits(this._values.agent);
+    const key = face ? JSON.stringify({ ...face, name: face.name ?? summary }) : '';
+    if (key !== this._faceKey) {
+      this._avatar?.destroy();
+      this._avatar = face ? new AgentAvatar(null, {
+        ...face, name: face.name ?? summary, size: 'sm', label: null, indicator: false, animate: false
+      }) : null;
+      this._faceKey = key;
+    }
+    if (!this._avatar) return null;
+    this._avatar.setActivity(RUN_ACTIVITY[state]);
+    return this._avatar.toElement();
   }
 
   /** @private @param {RunState} state @returns {Node[]} The state's glyph and its word. */

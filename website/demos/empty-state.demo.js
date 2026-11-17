@@ -1,5 +1,9 @@
 import { Panel, button, emptyState, h } from '../../src/index.js';
 
+// Agents are keyed by their stable id, so a renamed agent keeps its face.
+const FINANCE_AGENT = { seed: 'agt-finance', name: 'Finance agent', tone: 'violet', material: 'soft' };
+const SCOUT_AGENT = { seed: 'agt-scout', name: 'Scout', material: 'soft' };
+
 export default {
   title: 'EmptyState',
   group: 'Layout',
@@ -72,6 +76,29 @@ export default {
           align: 'start',
           title: 'Nothing to approve',
           description: 'Approvals assigned to you will show up here.'
+        })
+      ]
+    },
+    {
+      title: 'An agent with nothing to do yet',
+      blurb: 'agent draws an agent’s generated face in place of the icon: its AgentAvatar traits '
+        + 'and name, or true to derive the face from the title. It is decorative and at rest, so the '
+        + 'text says whose it is — the opening of a conversation, an agent waiting for its first task.',
+      layout: 'stack',
+      render: ({ log }) => [
+        emptyState({
+          agent: FINANCE_AGENT,
+          title: 'Ask the Finance agent',
+          description: 'It reconciles payments, drafts reminders, and answers questions about your '
+            + 'ledger. Nothing it does leaves the workspace without your approval.',
+          actions: [{ label: 'Start a conversation', kind: 'primary', onclick: () => log('start conversation') }]
+        }),
+        emptyState({
+          agent: SCOUT_AGENT,
+          size: 'sm',
+          align: 'start',
+          title: 'No tasks for Scout',
+          description: 'Tasks you assign to Scout appear here while it works on them.'
         })
       ]
     },
