@@ -68,6 +68,9 @@ export function dragAxis(handle, options) {
   let moved = false;
   /** Handle of the frame a pending update is scheduled in; `0` if none. */
   let frame = 0;
+  /** Listeners on the document for a drag whose pointer could not be captured; null otherwise. */
+  /** @type {AbortController|null} */
+  let uncaptured = null;
 
   /** @param {PointerEvent} event @returns {number} */
   const axis = (event) => (vertical ? event.clientY : event.clientX);
@@ -110,6 +113,8 @@ export function dragAxis(handle, options) {
     moved = false;
     cancelFrame();
     releasePointer();
+    uncaptured?.abort();
+    uncaptured = null;
   };
 
   handle.addEventListener('pointerdown', (event) => {
@@ -130,12 +135,22 @@ export function dragAxis(handle, options) {
     try {
       /** @type {HTMLElement} */ (handle).setPointerCapture(pointer.pointerId);
     } catch {
-      // A pointer that ended between the event and this call cannot be captured; the drag simply
-      // finishes on the next pointerup.
+      // Uncaptured, the pointer's moves and release go to whatever is under it, so the document is
+      // watched for them: a release off the handle must still end the drag, or every later press
+      // is refused while it stays open.
+      const target = handle.ownerDocument;
+      if (target) {
+        uncaptured = new AbortController();
+        const watch = { signal: uncaptured.signal };
+        target.addEventListener('pointermove', move, watch);
+        target.addEventListener('pointerup', end, watch);
+        target.addEventListener('pointercancel', end, watch);
+      }
     }
   }, { signal });
 
-  handle.addEventListener('pointermove', (event) => {
+  /** @param {Event} event @returns {void} */
+  function move(event) {
     const pointer = /** @type {PointerEvent} */ (event);
     if (!dragging || pointer.pointerId !== pointerId) return;
     client = axis(pointer);
@@ -145,10 +160,11 @@ export function dragAxis(handle, options) {
       frame = 0;
       if (dragging) options.onMove(sign * (client - startClient));
     });
-  }, { signal });
+  }
+  handle.addEventListener('pointermove', move, { signal });
 
   /** @param {Event} event @returns {void} */
-  const end = (event) => {
+  function end(event) {
     const pointer = /** @type {PointerEvent} */ (event);
     if (!dragging || pointer.pointerId !== pointerId) return;
     cancelFrame();
@@ -157,7 +173,7 @@ export function dragAxis(handle, options) {
     const delta = sign * (client - startClient);
     finish();
     options.onEnd?.(delta, travelled);
-  };
+  }
   handle.addEventListener('pointerup', end, { signal });
   handle.addEventListener('pointercancel', end, { signal });
 

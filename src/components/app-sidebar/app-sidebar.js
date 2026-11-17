@@ -937,7 +937,7 @@ export class AppSidebar extends Component {
 
   /** @param {EventTarget} target @param {string} type @param {EventListener} listener @returns {void} */
   _listenMode(target, type, listener) {
-    target.addEventListener(type, listener, { signal: this._modeAbort.signal });
+    this.listen(target, type, listener, { signal: this._modeAbort.signal });
   }
 
   /** @returns {void} */

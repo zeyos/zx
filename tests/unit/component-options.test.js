@@ -142,3 +142,56 @@ test('symbol-keyed options are kept, as a plain assignment kept them', () => {
   assert.equal(options[KEY], 1);
   assert.equal(Object.hasOwn(options, UNSET), false);
 });
+
+test('listen() with a signal removes the listener when that signal aborts or the component goes', () => {
+  class Probe extends Component {
+    render() {
+      return this.el;
+    }
+  }
+  const target = new EventTarget();
+  const component = new Probe(fakeElement());
+  const calls = [];
+  const part = new AbortController();
+  component.listen(target, 'ping', () => calls.push('part'), { signal: part.signal });
+  component.listen(target, 'ping', () => calls.push('life'));
+  target.dispatchEvent(new Event('ping'));
+  part.abort();
+  target.dispatchEvent(new Event('ping'));
+  assert.deepEqual(calls, ['part', 'life', 'life'], 'the part listener went with its signal');
+
+  // An already aborted signal adds nothing; destroying the component removes the rest.
+  component.listen(target, 'ping', () => calls.push('late'), { signal: part.signal });
+  const kept = new AbortController();
+  component.listen(target, 'ping', () => calls.push('kept'), { signal: kept.signal });
+  component.destroy();
+  target.dispatchEvent(new Event('ping'));
+  assert.deepEqual(calls, ['part', 'life', 'life']);
+});
+
+test('a once listener with a signal unlinks itself from that signal after it runs', () => {
+  class Probe extends Component {
+    render() {
+      return this.el;
+    }
+  }
+  const target = new EventTarget();
+  const component = new Probe(fakeElement());
+  const part = new AbortController();
+  // Count the abort callbacks the part signal holds.
+  let held = 0;
+  const add = part.signal.addEventListener.bind(part.signal);
+  part.signal.addEventListener = (type, listener, options) => {
+    held += 1;
+    options?.signal?.addEventListener('abort', () => { held -= 1; }, { once: true });
+    return add(type, listener, options);
+  };
+  const calls = [];
+  component.listen(target, 'ping', function (event) { calls.push([this === target, event.type]); }, { once: true, signal: part.signal });
+  assert.equal(held, 1);
+  target.dispatchEvent(new Event('ping'));
+  target.dispatchEvent(new Event('ping'));
+  assert.deepEqual(calls, [[true, 'ping']], 'ran once, with the target as this');
+  assert.equal(held, 0, 'the part signal no longer holds the listener');
+  component.destroy();
+});

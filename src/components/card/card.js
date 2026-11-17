@@ -158,7 +158,7 @@ export class Card extends Component {
         if (onclick !== undefined && typeof onclick !== 'function') {
           throw new TypeError('Card action onclick must be a function');
         }
-        if (onclick) control.addEventListener('click', onclick, { signal: nextAbort.signal });
+        if (onclick) this.listen(control, 'click', onclick, { signal: nextAbort.signal });
         return control;
       });
     } catch (error) {
@@ -210,7 +210,7 @@ export class Card extends Component {
       target: this._link.target,
       rel: this._link.rel
     }, title) : h('span', { class: 'zx-card__title' }, title);
-    if (this._link?.onclick) node.addEventListener('click', this._link.onclick, { signal: nextAbort.signal });
+    if (this._link?.onclick) this.listen(node, 'click', this._link.onclick, { signal: nextAbort.signal });
     this._linkAbort?.abort();
     this._linkAbort = nextAbort;
     this.refs.heading.replaceChildren(node);

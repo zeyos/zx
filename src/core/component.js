@@ -193,7 +193,10 @@ export class Component extends EventTarget {
   }
 
   /**
-   * Adds an automatically cleaned-up DOM event listener.
+   * Adds an automatically cleaned-up DOM event listener. It goes when the component is destroyed;
+   * a `signal` in the options shortens its life further, for a listener that belongs to one
+   * rendering of a part — it then goes when that signal aborts or the component is destroyed,
+   * whichever comes first.
    * @param {EventTarget} element DOM event target.
    * @param {string} type Event name.
    * @param {EventListenerOrEventListenerObject} fn Listener.
@@ -202,7 +205,25 @@ export class Component extends EventTarget {
    */
   listen(element, type, fn, opts = {}) {
     const options = typeof opts === 'boolean' ? { capture: opts } : { ...opts };
-    element.addEventListener(type, fn, { ...options, signal: this.#abort.signal });
+    const shorter = options.signal;
+    if (shorter?.aborted) return this;
+    if (!shorter || shorter === this.#abort.signal) {
+      element.addEventListener(type, fn, { ...options, signal: this.#abort.signal });
+      return this;
+    }
+    // Either signal ends the listener through one link of its own, and the link goes with it: a
+    // once listener that has run, or one signal aborting, leaves nothing held by the other.
+    const link = new AbortController();
+    const listener = options.once
+      ? /** @this {EventTarget} @param {Event} event */ function (event) {
+        link.abort();
+        if (typeof fn === 'function') fn.call(this, event);
+        else fn.handleEvent(event);
+      }
+      : fn;
+    element.addEventListener(type, listener, { ...options, signal: link.signal });
+    shorter.addEventListener('abort', () => link.abort(), { once: true, signal: link.signal });
+    this.#abort.signal.addEventListener('abort', () => link.abort(), { once: true, signal: link.signal });
     return this;
   }
 

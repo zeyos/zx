@@ -485,7 +485,7 @@ export class ViewSettings extends Component {
     // not kept alive by this panel until it is destroyed.
     const controller = new AbortController();
     this._bound = { view: candidate, controller };
-    candidate.addEventListener('statechange', (/** @type {Event} */ event) => {
+    this.listen(candidate, 'statechange', (/** @type {Event} */ event) => {
       if (this._syncing) return;
       const reason = /** @type {CustomEvent} */ (event).detail?.reason;
       this._pullFromView(reason === 'fields' || reason === 'restore');

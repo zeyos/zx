@@ -1,5 +1,6 @@
 // @ts-check
 import { formattingLocale, getLanguage, hostMessage } from './i18n.js';
+import { escapeRegExp } from './util.js';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -257,7 +258,3 @@ function yearFromTwoDigits(year) {
   return year >= 69 ? 1900 + year : 2000 + year;
 }
 
-/** @param {string} value @returns {string} */
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
