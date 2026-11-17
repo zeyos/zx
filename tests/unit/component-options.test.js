@@ -195,3 +195,25 @@ test('a once listener with a signal unlinks itself from that signal after it run
   assert.equal(held, 0, 'the part signal no longer holds the listener');
   component.destroy();
 });
+
+test('listen() adds nothing after destroy(), and a repeated once registration still runs once', () => {
+  class Probe extends Component {
+    render() {
+      return this.el;
+    }
+  }
+  const target = new EventTarget();
+  const live = new AbortController();
+  const calls = [];
+  const fn = () => calls.push('ran');
+  const component = new Probe(fakeElement());
+  component.listen(target, 'ping', fn, { once: true, signal: live.signal });
+  component.listen(target, 'ping', fn, { once: true, signal: live.signal });
+  target.dispatchEvent(new Event('ping'));
+  assert.deepEqual(calls, ['ran'], 'the platform folds a repeated registration of one callback');
+  component.destroy();
+  component.listen(target, 'ping', fn, { signal: live.signal });
+  component.listen(target, 'ping', fn);
+  target.dispatchEvent(new Event('ping'));
+  assert.deepEqual(calls, ['ran'], 'a destroyed component took a listener');
+});

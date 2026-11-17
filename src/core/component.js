@@ -206,22 +206,21 @@ export class Component extends EventTarget {
   listen(element, type, fn, opts = {}) {
     const options = typeof opts === 'boolean' ? { capture: opts } : { ...opts };
     const shorter = options.signal;
-    if (shorter?.aborted) return this;
+    // A destroyed component, like an aborted signal, takes no more listeners.
+    if (shorter?.aborted || this.#abort.signal.aborted) return this;
     if (!shorter || shorter === this.#abort.signal) {
       element.addEventListener(type, fn, { ...options, signal: this.#abort.signal });
       return this;
     }
     // Either signal ends the listener through one link of its own, and the link goes with it: a
-    // once listener that has run, or one signal aborting, leaves nothing held by the other.
+    // once listener that has run, or one signal aborting, leaves nothing held by the other. The
+    // callback is registered as given, so the platform still folds a repeated registration of it.
     const link = new AbortController();
-    const listener = options.once
-      ? /** @this {EventTarget} @param {Event} event */ function (event) {
-        link.abort();
-        if (typeof fn === 'function') fn.call(this, event);
-        else fn.handleEvent(event);
-      }
-      : fn;
-    element.addEventListener(type, listener, { ...options, signal: link.signal });
+    element.addEventListener(type, fn, { ...options, signal: link.signal });
+    if (options.once) {
+      element.addEventListener(type, () => link.abort(),
+        { once: true, capture: Boolean(options.capture), signal: link.signal });
+    }
     shorter.addEventListener('abort', () => link.abort(), { once: true, signal: link.signal });
     this.#abort.signal.addEventListener('abort', () => link.abort(), { once: true, signal: link.signal });
     return this;
