@@ -88,7 +88,10 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   (`[aria-expanded="true"]`, `[aria-selected="true"]`, `[data-state="open"]`), not state classes.
 - Accessibility follows the WAI-ARIA Authoring Practices Guide (APG) pattern named in the spec,
   including the full keyboard map. Focus styling uses `:focus-visible` with the
-  `--zx-focus-ring` token. Wrap all non-essential animation in
+  `--zx-focus-ring` token, and the ring marks controls only: an element that takes focus without
+  being one carries `data-zx-focus="container"` (only a script focuses it — no ring) or
+  `data-zx-focus="region"` (a Tab stop such as a scroll region or a tab panel with nothing to
+  operate — inset ring), and draws no ring of its own (`styles/base.css`). Wrap all non-essential animation in
   `@media (prefers-reduced-motion: no-preference)`.
 - Both themes must work: verify light and dark (`data-zx-theme`) render correctly for every
   component you touch. There is one geometry; spacing, radius, and control
@@ -160,7 +163,8 @@ filling the window, for use in a separate tab.
   inspector and the navigation become drawers below 1180px and 860px, and below 640px a shell with
   a list column shows the list or the main pane; at full width it collapses columns and opens a
   `.shell__panel` bottom panel, with Mod+B/I/J when asked), `.shell__statusbar`, key sequences in
-  `shortcuts()` (`'g h'`), and `shortcutSheet()` for the `?` reference; `fixtures.js` is the shared fictional world, `layout-icons.js` the extra icons.
+  `shortcuts()` (`'g h'`), `shortcutSheet()` for the `?` reference, and `focusTarget()` for a heading or pane a
+  script moves focus to; `fixtures.js` is the shared fictional world, `layout-icons.js` the extra icons.
   A layout's styles live in `<id>.layout.css` — templates and screen patterns alike — every
   selector under its block class, imported by `website/layouts.css`. `tests/lint-tokens.js` holds
   all of them to the semantic-token rule.

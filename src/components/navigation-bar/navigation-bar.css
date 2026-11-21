@@ -144,10 +144,6 @@
   padding: var(--zx-space-4);
 }
 
-.zx-navigation-bar__panel:focus-visible {
-  box-shadow: inset var(--zx-focus-ring);
-}
-
 /*
  * Overflow.
  *

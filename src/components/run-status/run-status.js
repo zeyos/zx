@@ -221,7 +221,7 @@ export class RunStatus extends Component {
     /** @type {AgentAvatar|null} The agent's face, kept across draws while it asks for the same traits. */
     this._avatar = null;
     this._faceKey = '';
-    /** Whether the root took `tabindex="-1"` to hold focus that had nowhere else to go. */
+    /** Whether the root took `tabindex="-1"` (and `data-zx-focus`) to hold focus that had nowhere else to go. */
     this._heldFocus = false;
     /** @type {ReturnType<typeof setInterval>|0} */
     this._interval = 0;
@@ -424,6 +424,7 @@ export class RunStatus extends Component {
     }
     if (!root.hasAttribute('tabindex')) {
       root.tabIndex = -1;
+      root.dataset.zxFocus = 'container';
       this._heldFocus = true;
     }
     root.focus({ preventScroll: true });
@@ -434,6 +435,7 @@ export class RunStatus extends Component {
     if (!this._heldFocus) return;
     this._heldFocus = false;
     this.el.removeAttribute('tabindex');
+    this.el.removeAttribute('data-zx-focus');
   }
 
   /**

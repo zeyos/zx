@@ -603,7 +603,9 @@ export default {
     }));
     const header = paneHeader({ leading: shell.navToggle(), title: '', actions: [more.toElement(), shell.asideToggle()] });
     const heading = /** @type {HTMLElement} */ (header.querySelector('.shell__title'));
-    const scroller = h('div', { class: 'shell__body canvas__thread', role: 'region', 'aria-label': 'Messages', tabindex: '0' });
+    const scroller = h('div', {
+      class: 'shell__body canvas__thread', role: 'region', 'aria-label': 'Messages', tabindex: '0', 'data-zx-focus': 'region'
+    });
     const starters = keep(new PromptStarters(null, {
       label: 'Requests this agent knows',
       items: SCENARIOS.map((scenario) => ({ id: scenario.id, title: scenario.prompt, text: scenario.prompt, description: scenario.what, icon: scenario.icon })),

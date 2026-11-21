@@ -291,12 +291,6 @@
   font-size: var(--zx-text-sm);
 }
 
-.zx-surface__verdict:focus-visible {
-  border-radius: var(--zx-radius-sm);
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
 .zx-surface__verdict-icon {
   display: inline-flex;
 }

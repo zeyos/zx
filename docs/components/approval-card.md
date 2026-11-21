@@ -37,8 +37,8 @@ the answer, and the application carries it out.
   now; closes any of the card's open dialogs), `getStatus()`, `getValues()` (a copy, edits
   included), `getEditedKeys()` (`[]` when not edited, `null` when every field is listed),
   `focus()` (the root is `tabindex="-1"`, so a thread can move focus to a request when a run
-  starts waiting), `handleKey(event)` → `boolean`, and `destroy()` (also destroys the card's
-  dialogs, including an open confirmation).
+  starts waiting; it is a container and draws no focus ring), `handleKey(event)` → `boolean`, and
+  `destroy()` (also destroys the card's dialogs, including an open confirmation).
 - **Update in place** — `update()` is for a request the agent revises while it waits, or a record
   that changed. It redraws only what changed: values equal to what is drawn (compared by content,
   so a fresh copy of the same blocks or fields counts as equal) are left alone, and focus stays

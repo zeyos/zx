@@ -595,7 +595,7 @@ function shortcuts(root, map, context) {
   // Clicking plain content moves focus to the nearest focusable ancestor — the root, once it can
   // take focus — instead of dropping it to <body>, where the keys would no longer reach it. A
   // natively focusable target (a text area) keeps its place in the tab order.
-  if (!root.hasAttribute('tabindex') && root.tabIndex < 0) root.tabIndex = -1;
+  focusTarget(root);
   const mac = isMac();
   const starts = new Set(Object.keys(map).filter((name) => name.includes(' ')).map((name) => name.split(' ')[0]));
   /** @type {string|null} The first key of a sequence in progress. */
@@ -860,6 +860,26 @@ const CURRENT = '[aria-current="page"], [aria-current="true"], [aria-selected="t
 const NOT_TEXT_ENTRY = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"]):not(input, textarea, [contenteditable="true"])';
 
 /**
+ * Makes `element` a place only a script moves focus to — a heading a view switch announces, a pane
+ * that holds focus while its content is replaced, the root that keeps a layout's shortcuts
+ * reachable — and returns it. It gets `tabindex="-1"`, so it is never a Tab stop, and
+ * `data-zx-focus="container"`, so it draws no focus ring: Chrome rings a focused element after any
+ * key press, even Shift, and a ring around a heading or a whole pane announces a control that is not
+ * there. An element that takes focus already — a control, a Tab-stop region, a roving item with its
+ * own `tabindex` — is returned untouched and keeps its ring.
+ * @template {HTMLElement} T
+ * @param {T} element
+ * @returns {T}
+ */
+function focusTarget(element) {
+  if (!element.hasAttribute('tabindex') && element.tabIndex < 0) {
+    element.tabIndex = -1;
+    element.dataset.zxFocus = 'container';
+  }
+  return element;
+}
+
+/**
  * Focuses the first element in `scope` matching one of the selectors, in order, that actually takes
  * focus — a closed listbox's selected option matches `[aria-selected]` but is not rendered, and a
  * `<span aria-current>` is rendered but not focusable.
@@ -880,8 +900,8 @@ function focusFirst(scope, ...selectors) {
 }
 
 /**
- * Focuses the first rendered heading in `scope`, making it focusable from script only, so a screen
- * reader announces where a pane switch or a navigation choice went.
+ * Focuses the first rendered heading in `scope`, making it a script-only focus target
+ * (`focusTarget()`), so a screen reader announces where a pane switch or a navigation choice went.
  * @param {Element|null|undefined} scope
  * @returns {boolean} Whether a heading took focus.
  */
@@ -889,8 +909,7 @@ function focusHeading(scope) {
   const heading = [...(scope?.querySelectorAll('h1, h2, h3') ?? [])]
     .find((element) => element instanceof HTMLElement && element.checkVisibility({ visibilityProperty: true }));
   if (!(heading instanceof HTMLElement)) return false;
-  if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
-  heading.focus({ preventScroll: true });
+  focusTarget(heading).focus({ preventScroll: true });
   return document.activeElement === heading;
 }
 
@@ -1122,8 +1141,7 @@ function adaptiveShell(root, context, {
     root.dataset.pane = next;
     if (!focus || context.preview || !single() || !column('list')) return;
     if (target?.isConnected) {
-      if (!target.hasAttribute('tabindex') && !target.matches(FOCUSABLE)) target.tabIndex = -1;
-      target.focus({ preventScroll: true });
+      focusTarget(target).focus({ preventScroll: true });
       if (document.activeElement === target) return;
     }
     if (next === 'main') {
@@ -1157,8 +1175,7 @@ function adaptiveShell(root, context, {
       // never left on the inert opener behind the scrim.
       // The current page first: in a modules sidebar the current module's tile comes before it.
       if (!focusFirst(panel, '[aria-current="page"]', CURRENT, NOT_TEXT_ENTRY)) {
-        if (!panel.hasAttribute('tabindex')) panel.tabIndex = -1;
-        panel.focus({ preventScroll: true });
+        focusTarget(panel).focus({ preventScroll: true });
       }
       ondrawer?.(name, true);
     } else {
@@ -1327,8 +1344,8 @@ function adaptiveShell(root, context, {
 }
 
 export {
-  DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot, iconButton, iconTile,
-  isEditable, kbd, later, layoutContext, listTime, loadChartJs, modShortcut, modifierLabel,
+  DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot,
+  focusTarget, iconButton, iconTile, isEditable, kbd, later, layoutContext, listTime, loadChartJs, modShortcut, modifierLabel,
   accountChoices, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts, suiteNav, suiteStrip, toast, toaster, unavailable,
   unavailablePane, watchTheme, workspaceHeader
 };

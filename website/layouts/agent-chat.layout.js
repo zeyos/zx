@@ -3,7 +3,7 @@ import {
   formatCurrency, formatDate, formatNumber, h, icon, prefersReducedMotion, surfaceText, watchMotion
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, listTime, paneHeader, panelBlock,
+  DATE, adaptiveShell, disposer, focusTarget, iconButton, kbd, later, layoutContext, listTime, paneHeader, panelBlock,
   renderScope, shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, ORGANISATION, company, person } from './fixtures.js';
@@ -507,7 +507,7 @@ export default {
 
     /* ------------------------------------------------------------ conversations -- */
 
-    const history = h('div', { class: 'agent-chat__history', role: 'region', 'aria-label': 'Conversations', tabindex: '-1' });
+    const history = focusTarget(h('div', { class: 'agent-chat__history', role: 'region', 'aria-label': 'Conversations' }));
     // The suite's navigation: the agent's conversations, under the way to start a new one.
     const nav = suiteNav(context, {
       module: 'assistant',
@@ -562,7 +562,9 @@ export default {
     }));
     const header = paneHeader({ leading: shell.navToggle(), title: '', actions: [pill, more.toElement(), shell.asideToggle()] });
     const heading = /** @type {HTMLElement} */ (header.querySelector('.shell__title'));
-    const scroller = h('div', { class: 'shell__body agent-chat__thread', role: 'region', 'aria-label': 'Messages', tabindex: '0' });
+    const scroller = h('div', {
+      class: 'shell__body agent-chat__thread', role: 'region', 'aria-label': 'Messages', tabindex: '0', 'data-zx-focus': 'region'
+    });
     const thread = keep(new AgentThread(null, {
       items: current().items,
       authors: AUTHORS,
@@ -619,8 +621,8 @@ export default {
     const stateBlock = h('div', { class: 'panel-block' }, runStatus.toElement());
     const stepsBlock = panelBlock('Steps', runSteps.toElement());
     const sourcesBlock = panelBlock('Sources', runSources.toElement());
-    const runBody = h('div', { class: 'shell__body agent-chat__run', tabindex: '-1' },
-      noRun, stateBlock, stepsBlock, panelBlock('Data it may touch', scopeList()), sourcesBlock);
+    const runBody = focusTarget(h('div', { class: 'shell__body agent-chat__run' },
+      noRun, stateBlock, stepsBlock, panelBlock('Data it may touch', scopeList()), sourcesBlock));
     const aside = h('aside', { class: 'shell__aside agent-chat__aside', 'aria-label': 'Run' },
       paneHeader({ title: 'Run' }), runBody);
 

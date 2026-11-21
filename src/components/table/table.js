@@ -472,6 +472,9 @@ export class Table extends Component {
     this._scroll = h('div', {
       class: 'zx-table__scroll',
       dataset: {
+        // A scroller with nothing focusable inside is a Tab stop of the browser's making: it keeps
+        // an inset ring there, and none while it holds focus for a table with no rows.
+        zxFocus: 'region',
         stickyHeader: String(Boolean(this.options.stickyHeader)),
         // Stripes follow the row's place in the data while windowed: `:nth-child` would count the
         // spacers, and the stripes would swap as the window moved.
@@ -2917,11 +2920,13 @@ export class Table extends Component {
       if (!frame.hasAttribute('tabindex')) {
         frame.tabIndex = -1;
         frame.setAttribute('data-empty-focus', '');
+        frame.dataset.zxFocus = 'container';
       }
       frame.focus({ preventScroll: true });
     } else if (frame.hasAttribute('data-empty-focus')) {
       frame.removeAttribute('tabindex');
       frame.removeAttribute('data-empty-focus');
+      frame.dataset.zxFocus = 'region';
     }
   }
 

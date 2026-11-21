@@ -3,7 +3,7 @@ import {
   emptyState, formatDate, formatRelativeTime, h, uid
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, dot, iconButton, layoutContext, listTime, modShortcut, paneHeader, renderScope,
+  DATE, adaptiveShell, disposer, dot, focusTarget, iconButton, layoutContext, listTime, modShortcut, paneHeader, renderScope,
   sectionLabel, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, company, person } from './fixtures.js';
@@ -228,7 +228,7 @@ export default {
     }));
     const replyButton = button({ label: 'Reply', icon: 'reply', shortcut: { label: 'R', keys: 'R' }, onclick: () => openReply() });
     const readerActions = h('div', { class: 'inbox__actions' }, archiveButton, unreadButton, move.toElement(), replyButton, more.toElement());
-    const readerBody = h('div', { class: 'shell__body shell__body--padded', tabindex: '-1', 'aria-label': 'Conversation' });
+    const readerBody = focusTarget(h('div', { class: 'shell__body shell__body--padded', 'aria-label': 'Conversation' }));
 
     const replyText = h('textarea', {
       class: 'inbox__reply-input', rows: 5, placeholder: 'Write a reply…', 'aria-label': 'Reply',
@@ -353,10 +353,7 @@ export default {
       }
       // An empty list: its title says where the focus is, without raising a phone's keyboard.
       const title = list.querySelector('.shell__title');
-      if (title instanceof HTMLElement) {
-        title.tabIndex = -1;
-        title.focus();
-      }
+      if (title instanceof HTMLElement) focusTarget(title).focus();
     }
 
     /** On a phone, goes back from the conversation to the list, onto its row. @returns {void} */
@@ -377,8 +374,7 @@ export default {
       if (context.preview || !lost) return;
       const subject = readerBody.querySelector('h2');
       if (shell.single() && shell.pane() === 'main' && subject instanceof HTMLElement) {
-        subject.tabIndex = -1;
-        subject.focus();
+        focusTarget(subject).focus();
       } else {
         focusList();
       }

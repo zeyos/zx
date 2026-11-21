@@ -21,7 +21,8 @@ the answer arriving.
   blank line starts a new paragraph.
 - **Events** — `cite {n, source}` from a citation button, `artifact {id}` from an artifact card,
   `end` when a streamed answer is marked finished.
-- **Rendering** — code is a figure with its language, a copy button and a focusable `<pre>`
+- **Rendering** — code is a figure with its language, a copy button and a `<pre>` that is a Tab
+  stop only while a long line scrolls it
   (`lines: true` on a code block numbers its lines and wraps long ones under their own indent, for
   code read at length in an inspector),
   coloured for js, ts, json, sql, python, shell and css (anything else stays plain); a wide table

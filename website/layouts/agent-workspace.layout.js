@@ -20,7 +20,7 @@ import {
   formatNumber, h, icon, statusIcon
 } from '../../src/index.js';
 import {
-  SHELL_BREAKPOINTS, adaptiveShell, disposer, dot, iconButton, iconTile, kbd, later, layoutContext,
+  SHELL_BREAKPOINTS, adaptiveShell, disposer, dot, focusTarget, iconButton, iconTile, kbd, later, layoutContext,
   modShortcut, modifierLabel, paneHeader, panelBlock, renderScope, sectionLabel, shortcutSheet, shortcuts,
   suiteNav, toaster, unavailable
 } from './kit.js';
@@ -1437,7 +1437,8 @@ export default {
       const time = step.secs !== undefined ? h('span', { class: 'agents__num' }, duration(step.secs))
         : step.status === 'in-progress' && step.since !== undefined ? ticking(step.since, task)
           : h('span', { class: 'agents__none' }, '—');
-      return h('li', { class: 'agents__step', tabindex: '-1', 'data-key': `step:${index}`, dataset: { status: shown } },
+      // The step holds the focus when its approval or resolve button goes away with the answer.
+      return focusTarget(h('li', { class: 'agents__step', 'data-key': `step:${index}`, dataset: { status: shown } },
         h('span', { class: 'agents__step-glyph', title: info.label },
           statusIcon(/** @type {any} */ (info.status), { tone: /** @type {any} */ (info.tone), label: info.label })),
         h('span', { class: 'agents__step-text' },
@@ -1446,7 +1447,7 @@ export default {
           step.status === 'waiting' && step.approval ? h('span', { class: 'agents__step-note' }, `${nameOf(step.approval.from)} asks: ${step.approval.ask}`) : null,
           action),
         h('span', { class: 'agents__step-owner' }, personCell(step.agent, taskParts)),
-        h('span', { class: 'agents__step-time' }, time));
+        h('span', { class: 'agents__step-time' }, time)));
     }
 
     /** The chat with one agent: its presence, the conversation, and the composer. @returns {void} */
@@ -1700,8 +1701,7 @@ export default {
       if (preview || !region) return;
       const heading = region.querySelector('h2, h3');
       if (!(heading instanceof HTMLElement)) return;
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: false });
+      focusTarget(heading).focus({ preventScroll: false });
     }
 
     /** @param {FocusOptions} [options] @returns {void} */

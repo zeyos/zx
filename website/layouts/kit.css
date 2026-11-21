@@ -103,15 +103,6 @@
   padding: var(--zx-space-5);
 }
 
-/* A scrolling pane that takes focus so the keyboard can scroll it. */
-.shell__body:focus {
-  outline-color: transparent;
-}
-
-.shell__body:focus-visible {
-  box-shadow: inset var(--zx-focus-ring);
-}
-
 /* A pane body holding a board: the columns sit on the page colour, like cards on a table. */
 .shell__body--board {
   padding: var(--zx-space-4);
@@ -234,8 +225,8 @@
   padding-inline: var(--zx-space-2);
 }
 
-/* A panel is focusable, so it is the scroller whenever its content is not a `.shell__body` of its
-   own: the keyboard then scrolls it as soon as the panel has focus. */
+/* A panel is the scroller whenever its content is not a `.shell__body` of its own, so the keyboard
+   scrolls it whenever the panel itself has focus. */
 .shell__tabs > .zx-tabbox__panels > .zx-tabbox__panel {
   position: relative;
   overflow: auto;
@@ -251,12 +242,6 @@
   color: var(--zx-color-text-muted);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-}
-
-/* The layout root takes focus when plain content inside it is clicked, so its shortcuts keep
-   working; it is never a tab stop, so it needs no focus indicator of its own. */
-.shell:focus {
-  outline-color: transparent;
 }
 
 /* ------------------------------------------------------- navigation column -- */
@@ -407,6 +392,11 @@
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+/* Flat at rest, but the keyboard still sees where it is. */
+.shell__nav[data-nav="modules"] .zx-module-bar__footer .zx-account-menu__trigger:focus-visible {
+  box-shadow: var(--zx-focus-ring);
 }
 
 .shell__nav[data-nav="modules"] .zx-module-bar[data-labels="beside"] .zx-account-menu__trigger {
@@ -1171,12 +1161,6 @@ button.shell__status-item:focus-visible {
 .shell .shell__back,
 .shell .shell__aside-toggle {
   display: none;
-}
-
-/* A drawer with nothing focusable in it holds focus itself; it is a region, not a control. */
-.shell__nav:focus,
-.shell__aside:focus {
-  outline-color: transparent;
 }
 
 /* A collapsed column's toggle shows at any width, to bring it back. */

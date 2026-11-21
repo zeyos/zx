@@ -13,6 +13,9 @@ panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus retur
   dialog detached until then, rather than parking it on `<body>` outside the theme.
 - **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
 - **Events** — `open`, `close {result}`, `cancel {reason}`.
+- **Focus** — opening focuses an `autofocus` control, else the first focusable one. A panel with
+  nothing focusable takes focus itself (`tabindex="-1"`, outside the Tab order) and draws no focus
+  ring, keeping its elevation: the panel is a surface, not a control (`data-zx-focus="container"`).
 - **Dismissal** — everything the reader does to dismiss an overlay raises `cancel` first, with
   `reason` `'escape'`, `'close-button'` (Dialog/Sheet header ✕), `'button'` (a footer button whose
   action is `'cancel'`), `'backdrop'` (`lightDismiss`), `'outside'` or `'drag'` (Sheet).

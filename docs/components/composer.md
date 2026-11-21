@@ -94,6 +94,10 @@ the application, which owns the conversation and the transport.
 - **Files** — the Attach button, pasting files, and dropping files on the composer (the root shows
   `data-state="dropping"` and a drop label meanwhile) add attachments, filtered by `accept` and
   capped by `maxFiles`.
+- **Focus** — the box is a tray on the chrome tone; the text inside it is a field with the control
+  edge and fill, and it alone draws the focus ring while it is typed into. The box, the chips, the
+  queue and the bar never light up; Attach, Commands, the tools and Send ring only when they hold
+  the focus themselves.
 - **Accessibility** — the `<textarea>` keeps its textbox role. While suggestions show it carries
   `aria-autocomplete="list"`, `aria-controls` (the listbox) and `aria-activedescendant` (the
   highlighted `role="option"`), and a polite status says how many there are. Attachments and

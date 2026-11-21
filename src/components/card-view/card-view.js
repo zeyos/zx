@@ -576,11 +576,13 @@ export class CardView extends RecordView {
       if (!content.hasAttribute('tabindex')) {
         content.tabIndex = -1;
         content.setAttribute('data-empty-focus', '');
+        content.setAttribute('data-zx-focus', 'container');
       }
       content.focus({ preventScroll: true });
     } else if (content.hasAttribute('data-empty-focus')) {
       content.removeAttribute('tabindex');
       content.removeAttribute('data-empty-focus');
+      content.removeAttribute('data-zx-focus');
     }
   }
 
@@ -701,7 +703,7 @@ export class CardView extends RecordView {
       ariaHidden: 'true'
     });
     for (let index = 0; index < this._cardLoadingCount; index += 1) {
-      list.append(h('li', { class: 'zx-record-card zx-card-view__skeleton', tabindex: -1 },
+      list.append(h('li', { class: 'zx-record-card zx-card-view__skeleton', tabindex: -1, dataset: { zxFocus: 'container' } },
         h('span', { class: 'zx-card-view__skeleton-preview zx-skeleton' }),
         h('span', { class: 'zx-card-view__skeleton-line zx-skeleton' }),
         h('span', { class: 'zx-card-view__skeleton-line zx-skeleton' }),

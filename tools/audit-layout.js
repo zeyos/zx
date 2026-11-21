@@ -17,7 +17,9 @@
  *   disabled field's label), and decoration hidden with `aria-hidden` are skipped;
  * - focus: Tab walks the layout (up to 120 stops); every stop must be visible and show an indicator
  *   (outline, box shadow, border, or background differing from the unfocused state on the element
- *   or its two nearest ancestors);
+ *   or its two nearest ancestors). An outline that paints nothing — zero width or a fully
+ *   transparent colour, the forced-colours fallback under a box-shadow ring — counts as no outline,
+ *   so a stop whose only change on focus is that fallback has no visible indicator;
  * - structure: heading levels never skip, ids are unique, no positive tabindex, nothing focusable
  *   inside `aria-hidden`, no interactive element nested in another;
  * - targets (warning only): controls smaller than 24 × 24 px that are not links inside a sentence;
@@ -272,9 +274,22 @@ function focusProbe() {
     return { path: path.join('/'), label, problem: 'focus on an invisible element' };
   }
   const chain = [element, element.parentElement, element.parentElement?.parentElement].filter(Boolean);
+  /**
+   * Whether an outline paints anything: a transparent one — the forced-colours fallback that sits
+   * under a box-shadow ring — is no indicator in normal colours.
+   * @param {CSSStyleDeclaration} computed
+   */
+  const paints = (computed) => {
+    if (computed.outlineStyle === 'none' || parseFloat(computed.outlineWidth) === 0) return false;
+    const color = computed.outlineColor.trim();
+    if (color === 'transparent') return false;
+    // rgba(r, g, b, a) or a modern colour with "/ alpha"; a colour with neither is opaque.
+    const alpha = color.match(/\/\s*([\d.]+)(%?)\s*\)$/) ?? color.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)(%?)\s*\)$/);
+    return !alpha || Number(alpha[1]) > 0;
+  };
   const read = () => chain.map((node) => {
     const computed = getComputedStyle(node);
-    return [computed.outlineStyle !== 'none' ? `${computed.outlineStyle} ${computed.outlineWidth} ${computed.outlineColor}` : 'none',
+    return [paints(computed) ? `${computed.outlineStyle} ${computed.outlineWidth} ${computed.outlineColor}` : 'none',
       computed.boxShadow, computed.borderColor, computed.backgroundColor].join('|');
   }).join('#');
   const settle = () => {

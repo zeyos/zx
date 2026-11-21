@@ -43,7 +43,8 @@ announces nothing itself; the thread the run belongs to announces its milestones
 - **Focus** — `update()` keeps focus where it was: an action row whose labels, kinds, and icons did
   not change is kept as it is, so the focused button never leaves the DOM; otherwise focus goes to
   the action at the same index, or the nearest one left. When no action is left the panel itself
-  holds focus (`tabindex="-1"`, removed again once focus moves on).
+  holds focus (`tabindex="-1"` with `data-zx-focus="container"`, so no focus ring; both removed
+  again once focus moves on).
 - **Methods** — `update(values)` merges new values and redraws (the clock carries on unless the
   update brings a new `workMs`; `locale`, `msg`, `now`, and `onaction` are fixed), `getState()`
   (the values as copies, `tokenBudget` included, `workMs` counted up to now), `destroy()`.

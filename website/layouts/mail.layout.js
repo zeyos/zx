@@ -4,7 +4,7 @@ import {
   emptyState, formatDate, formatNumber, formatRelativeTime, h, highlightMatch, icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, dot, iconButton, kbd, later, layoutContext, listTime, modShortcut,
+  DATE, adaptiveShell, disposer, dot, focusTarget, iconButton, kbd, later, layoutContext, listTime, modShortcut,
   paneHeader, panelBlock, propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE } from './fixtures.js';
@@ -338,7 +338,7 @@ export default {
       openSplit(SPLITS[index].id);
       splitTabs[index].control.focus();
     });
-    const listBody = h('div', { class: 'shell__body', tabindex: '-1' });
+    const listBody = focusTarget(h('div', { class: 'shell__body' }));
     const search = keep(new Search(null, {
       placeholder: 'Search this view', debounce: 120,
       oninput: (event) => {
@@ -374,7 +374,7 @@ export default {
       kind: 'ghost', placement: 'bottom-end', items: snoozeItems()
     }));
     const more = keep(new MenuButton(iconButton('ellipsis', 'More actions'), { kind: 'ghost', placement: 'bottom-end' }));
-    const threadBody = h('div', { class: 'shell__body mail__reader', tabindex: '-1' });
+    const threadBody = focusTarget(h('div', { class: 'shell__body mail__reader' }));
     const main = h('section', { class: 'shell__main', 'aria-label': 'Conversation' },
       paneHeader({
         leading: [shell.navToggle(), back, previous, next], title: position,
@@ -917,8 +917,7 @@ export default {
       // On a phone the conversation replaces the list, so the focus lands on its subject and a
       // screen reader says where it went; wide, the pane takes it so the arrow keys scroll it.
       const subject = shell.single() ? threadBody.querySelector('h2') : null;
-      if (subject) subject.tabIndex = -1;
-      (subject ?? threadBody).focus();
+      (subject ? focusTarget(subject) : threadBody).focus();
     }
 
     /** Back to the list. @param {{focus?: boolean}} [options] @returns {void} */

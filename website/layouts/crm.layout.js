@@ -5,7 +5,7 @@ import {
   parseNumber, toCsv
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, layoutContext, later, listTime, paneHeader, panelBlock,
+  DATE, adaptiveShell, disposer, focusTarget, iconButton, iconTile, layoutContext, later, listTime, paneHeader, panelBlock,
   propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
@@ -536,8 +536,7 @@ export default {
     function focusHeading() {
       const heading = main.querySelector('h1, h2');
       if (!(heading instanceof HTMLElement)) return;
-      if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+      focusTarget(heading).focus({ preventScroll: true });
     }
 
     /** @param {string} id Company id. @returns {void} Opens it, remembering where from. */

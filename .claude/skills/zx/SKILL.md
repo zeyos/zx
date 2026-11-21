@@ -275,6 +275,13 @@ defineElements();
   - Follow the WAI-ARIA APG pattern named in the component's spec (combobox, dialog, tabs, grid,
     menu). `:focus-visible` rings via `--zx-focus-ring`; wrap animation in
     `@media (prefers-reduced-motion: no-preference)`.
+  - The ring is for controls. An element that takes focus without being one carries
+    `data-zx-focus`: `"container"` when only a script focuses it (`tabindex="-1"` — a dialog
+    panel, a card holding focus after its button went away, a view root): no ring at all;
+    `"region"` for a Tab stop that is not a control (a keyboard scroll region, a tab panel with
+    nothing to operate): the ring drawn inset. Set it at creation and draw no ring of your own on
+    such elements. A tab panel is a Tab stop (`tabindex="0"`) only while nothing inside it is
+    one; a scrolling block only while it overflows.
 
 ## Where things are & commands
 

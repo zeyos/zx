@@ -80,3 +80,23 @@ stays in the tab order, so focusing it shows it. On touch screens, under `prefer
 and in forced colours it is always visible. Use it only for repeated, secondary per-row actions
 that are reachable another way (a context menu, a keyboard shortcut); a primary action stays
 visible. Hosts do not nest.
+
+**Focus targets.** `.zx-scope` draws the focus ring on whatever matches `:focus-visible`, and
+Chrome matches any focused element once a key has been pressed — even Shift — so a click into a
+focusable panel followed by a keystroke would ring the whole panel like a field. An element that
+takes focus without being a control says which kind it is with `data-zx-focus`:
+- `data-zx-focus="container"` — only a script focuses it (`tabindex="-1"`, never a Tab stop): a
+  view root that keeps its shortcuts reachable, a heading a route change moves the reader to, a
+  panel holding focus after the control in it went away. It draws no ring and no outline, in forced
+  colours either; its own box-shadow (an overlay's elevation) stays.
+- `data-zx-focus="region"` — a Tab stop that is not a control: a scroll region the keyboard has to
+  reach, a tab panel with nothing inside to operate. Keyboard focus there stays visible as a ring
+  inside its edge, drawn as an outline so the region's own content cannot cover it; forced colours
+  paint it in the system highlight.
+
+Set it when the element is created; it only matters while the element has focus. It works on the
+`.zx-scope` element itself as well as on anything inside it. Zx components
+mark their own: the Modal, Dialog and Sheet panel, a Dropdown panel only a script focuses, the
+ApprovalCard and RunStatus roots, Questionnaire's question and review, Surface's verdict and the
+emptied Table and CardView bodies are containers; tab panels, code blocks, a Dropdown panel with a
+`tabindex` of 0 or more, and the scroll regions of Table, Dock and MasterPanel are regions.

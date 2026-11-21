@@ -292,9 +292,3 @@
 .zx-tabbox[data-variant="bracket"] .zx-tabbox__panel {
   padding: var(--zx-space-4);
 }
-
-.zx-tabbox__panel:focus-visible {
-  outline-color: transparent;
-  outline-offset: -2px;
-  box-shadow: inset var(--zx-focus-ring);
-}

@@ -3,7 +3,7 @@ import {
   formatNumber, h, icon
 } from '../../src/index.js';
 import {
-  DATE, disposer, iconButton, iconTile, layoutContext, modShortcut, propList, renderScope, shortcuts,
+  DATE, disposer, focusTarget, iconButton, iconTile, layoutContext, modShortcut, propList, renderScope, shortcuts,
   toaster, unavailable, workspaceHeader
 } from './kit.js';
 import { NOW, company } from './fixtures.js';
@@ -176,7 +176,7 @@ export default {
       }
     }));
 
-    const heading = h('h2', { class: 'record-title record-title--sm', tabIndex: -1 });
+    const heading = focusTarget(h('h2', { class: 'record-title record-title--sm' }));
     const intro = h('p', { class: 'meta' });
     const content = h('div', { class: 'form-sections checkout__content' });
     const backButton = button({ label: 'Back', icon: 'chevron-left', kind: 'ghost', onclick: () => stepper.previous() });

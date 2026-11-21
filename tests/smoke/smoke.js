@@ -191,6 +191,7 @@ const cases = [
     assert(!component.el.querySelector('[data-closable]'), 'close control did not remove the tab');
     closes.expect();
   }),
+  tabboxPanelFocusCase(),
   componentCase('NavigationBar', () => new zx.NavigationBar(null, {
     title: 'App',
     items: navigationItems()
@@ -915,6 +916,53 @@ const cases = [
     assert(selected.join(',') === 'm3' && !component.isAllModulesOpen(), 'a catalogue choice did not select and close');
     assert(openings.join(',') === 'true,false,true,false', `catalogue events: ${openings}`);
   }),
+  componentCase('ModuleBar (rows measured as placed)', () => {
+    // Pinned modules in two sections, one of them with a name that wraps, and three sections of
+    // unpinned modules that only "All modules" offers.
+    const module = (id, label, pinned = true) => ({ id, label, icon: 'search', pinned });
+    const names = ['Banners', 'Pages', 'Products and spare parts for every season', 'Tags', 'Stock', 'Dates'];
+    return new zx.ModuleBar(null, {
+      label: 'Pinned modules',
+      labels: 'beside',
+      allModules: 'always',
+      items: [
+        module('home', 'Home'), module('tasks', 'Tasks'),
+        { section: true, label: 'Collections', children: names.map((name, index) => module(`c${index}`, name)) },
+        { section: true, label: 'Agents', children: [module('agents', 'All agents')] },
+        ...['Administration', 'Workspace', 'AI'].map((label) => ({
+          section: true, label, children: [1, 2].map((index) => module(`${label}${index}`, `${label} ${index}`, false))
+        }))
+      ]
+    });
+  }, async (component) => {
+    const bar = component.el;
+    const list = bar.querySelector('.zx-module-bar__list');
+    const drawn = () => [...list.children].filter((child) => getComputedStyle(child).display !== 'none');
+    const shown = () => drawn().filter((child) => child.dataset.moduleId).map((child) => child.dataset.moduleId).join(',');
+    const cut = () => {
+      const end = list.getBoundingClientRect().bottom - Number.parseFloat(getComputedStyle(list).paddingBlockEnd);
+      return drawn().filter((child) => child.getBoundingClientRect().bottom > end + 1);
+    };
+    const pinned = 'home,tasks,c0,c1,c2,c3,c4,c5,agents';
+    bar.style.blockSize = '2000px';
+    await nextFrame();
+    const heights = drawn().filter((child) => child.dataset.moduleId).map((child) => child.offsetHeight);
+    assert(Math.max(...heights) > Math.min(...heights), 'the long module name did not wrap, so nothing here is tested');
+    const needed = drawn().at(-1).getBoundingClientRect().bottom - list.getBoundingClientRect().top
+      + Number.parseFloat(getComputedStyle(list).paddingBlockEnd);
+    // Exactly the room the pinned modules, their headings, and the button take: the unpinned
+    // modules and their headings take none, and the two-line row only its own height.
+    bar.style.blockSize = `${Math.ceil(needed)}px`;
+    await nextFrame();
+    assert(shown() === pinned, `a bar with room for every pinned module showed ${shown()}`);
+    assert(!cut().length, 'a row was cut off');
+    // A little less: the last module gives way, its heading with it, and nothing is cut.
+    bar.style.blockSize = `${Math.floor(needed) - 10}px`;
+    await nextFrame();
+    assert(shown() === pinned.replace(',agents', ''), `a bar 10px short showed ${shown()}`);
+    assert(!drawn().some((child) => child.dataset.section === 'Agents'), 'a heading over no module is still shown');
+    assert(!cut().length && !list.querySelector('[data-module-bar-more]').hidden, 'a row was cut off, or the button went');
+  }),
   componentCase('AppSidebar (modules layout)', () => new zx.AppSidebar(null, {
     layout: 'modules',
     items: [
@@ -1180,6 +1228,7 @@ const cases = [
     assert(results.length === 1 && results[0] === undefined,
       `a native dismissal inherited a stale result (${JSON.stringify(results)})`);
   }),
+  modalFocusTargetCase(),
   componentCase('Dialog', () => new zx.Dialog(null, { title: 'Dialog', content: 'Body' }), (component) => {
     component.addView('one', { content: 'One' });
     component.addView('two', { content: 'Two' });
@@ -2811,7 +2860,11 @@ const cases = [
     component.update({ actions: [] });
     assert(document.activeElement === root && root.getAttribute('tabindex') === '-1',
       'focus fell out of the panel when its last action went');
+    assert(root.dataset.zxFocus === 'container', 'the panel holding focus is not marked as a focus container');
     component.update({ actions: [{ label: 'Review the request', kind: 'primary' }] });
+    root.querySelector('[data-run-action="0"]').focus();
+    assert(!root.hasAttribute('tabindex') && !root.hasAttribute('data-zx-focus'),
+      'the panel kept its tabindex or focus marker after focus moved on');
 
     // Tokens: a total, and a meter against a budget.
     component.update({ tokens: 22840 });
@@ -3294,6 +3347,7 @@ const cases = [
   }), (component) => {
     const root = component.el;
     assert(root.getAttribute('role') === 'group' && root.tabIndex === -1, 'ApprovalCard root is not a focusable group');
+    assert(root.dataset.zxFocus === 'container', 'ApprovalCard root is not marked as a focus container');
     assert(document.getElementById(root.getAttribute('aria-labelledby'))?.localName === 'h3',
       'ApprovalCard group is not labelled by its title');
     assert(root.dataset.state === 'pending', 'ApprovalCard did not start pending');
@@ -3388,6 +3442,7 @@ const cases = [
     component.setStatus('pending');
     assert(!root.querySelector('.zx-approval-card__actions').hidden, 'setStatus(pending) did not restore the actions');
   }),
+  approvalCardFocusTargetCase(),
   componentCase('RunTrace', () => new zx.RunTrace(null, {
     authors: { finance: { name: 'Finance agent' }, collections: { name: 'Collections agent' } },
     maxResult: 20,
@@ -4607,6 +4662,120 @@ function questionnaireTargetCase() {
       component.destroy();
       assert(stage.outerHTML === before, `destroy() did not restore the target: ${stage.outerHTML}`);
       stage.remove();
+    }
+  };
+}
+
+/**
+ * Tab panels follow the APG tabs pattern: a panel is a Tab stop of its own only while nothing inside
+ * it is one, and that is settled again as Tab leaves the tab list, so content that changed inside
+ * the panel since it was shown counts.
+ * @returns {SmokeDefinition}
+ */
+function tabboxPanelFocusCase() {
+  return {
+    name: 'Tabbox (panel focus)',
+    create(fixture) {
+      const component = new zx.Tabbox(null, {
+        tabs: [
+          { name: 'form', title: 'Form', content: () => zx.button({ label: 'Save' }) },
+          { name: 'notes', title: 'Notes', content: document.createTextNode('Plain text to read.') }
+        ]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const tabs = [...component.el.querySelectorAll('[role="tab"]')];
+      const panelOf = (tab) => component.el.querySelector(`#${CSS.escape(tab.getAttribute('aria-controls'))}`);
+      const [form, notes] = tabs.map(panelOf);
+      assert(form.dataset.zxFocus === 'region' && notes.dataset.zxFocus === 'region',
+        'tab panels are not marked as focus regions');
+      assert(!form.hasAttribute('tabindex'), 'a panel holding a control is a Tab stop of its own');
+      component.openTab('notes');
+      assert(notes.getAttribute('tabindex') === '0', 'a text-only panel is not a Tab stop');
+      const tabKey = () => tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+      const late = zx.button({ label: 'Added later' });
+      notes.append(late);
+      tabKey();
+      assert(!notes.hasAttribute('tabindex'), 'Tab from the tab list did not notice a control added to the panel');
+      late.remove();
+      tabKey();
+      assert(notes.getAttribute('tabindex') === '0', 'Tab from the tab list did not notice the panel lost its control');
+      component.openTab('form');
+      assert(!form.hasAttribute('tabindex'), 'showing the panel again made it a Tab stop');
+    },
+    destroy({ component }) {
+      component.destroy();
+    }
+  };
+}
+
+/**
+ * An element that takes focus without being a control draws no focus ring, even while Chrome says
+ * focus is keyboard-visible: a script moving focus on from a text field keeps it visible, so that
+ * is how these cases put the container in that state.
+ * @returns {SmokeDefinition}
+ */
+function modalFocusTargetCase() {
+  return {
+    name: 'Modal (focus target)',
+    create(fixture) {
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'Opener');
+      // A closed panel of the same class: what the open one has to look like while it holds focus.
+      const resting = document.createElement('dialog');
+      resting.className = 'zx-modal';
+      fixture.append(field, resting);
+      const component = new zx.Modal(null, { content: 'Nothing here takes focus.', scope: fixture });
+      return { component, field, resting };
+    },
+    async exercise({ component, field, resting }) {
+      field.focus();
+      component.open();
+      await nextFrame();
+      const panel = component.el;
+      assert(document.activeElement === panel && panel.matches(':focus-visible'),
+        'the text-only panel did not take keyboard-visible focus');
+      assert(panel.dataset.zxFocus === 'container', 'the panel is not marked as a focus container');
+      const style = getComputedStyle(panel);
+      assert(style.boxShadow === getComputedStyle(resting).boxShadow,
+        `the focused panel traded its elevation for a ring: ${style.boxShadow}`);
+      assert(style.outlineStyle === 'none', `the focused panel drew an outline: ${style.outlineStyle}`);
+      component.close();
+    },
+    destroy({ component, field, resting }) {
+      component.destroy();
+      field.remove();
+      resting.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function approvalCardFocusTargetCase() {
+  return {
+    name: 'ApprovalCard (focus target)',
+    create(fixture) {
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'Elsewhere');
+      const component = new zx.ApprovalCard(null, { title: 'Deploy to production?' });
+      fixture.append(field, component.toElement());
+      return { component, field };
+    },
+    exercise({ component, field }) {
+      field.focus();
+      component.focus();
+      const root = component.el;
+      assert(document.activeElement === root && root.matches(':focus-visible'),
+        'the card root did not take keyboard-visible focus');
+      const style = getComputedStyle(root);
+      assert(style.boxShadow === 'none' && style.outlineStyle === 'none',
+        `a focused ApprovalCard root drew a ring (${style.boxShadow}; outline ${style.outlineStyle})`);
+    },
+    destroy({ component, field }) {
+      component.destroy();
+      field.remove();
     }
   };
 }

@@ -3,7 +3,7 @@ import {
   Toggle, badge, button, emptyState, formatDate, h, icon, setButtonBusy, skeleton, skeletonTable, skeletonText, uid
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, allowsMotion, disposer, iconButton, iconTile, later, layoutContext, paneHeader, propList,
+  DATE, adaptiveShell, allowsMotion, disposer, focusTarget, iconButton, iconTile, later, layoutContext, paneHeader, propList,
   shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, company, person } from './fixtures.js';
@@ -531,10 +531,10 @@ export default {
     };
     /** @type {Record<string, {section: HTMLElement, heading: HTMLElement}>} */
     const sections = {};
-    const body = h('div', { class: 'shell__body shell__body--padded states__body', tabindex: '-1' },
+    const body = focusTarget(h('div', { class: 'shell__body shell__body--padded states__body' },
       h('div', { class: 'states__sections' }, GROUPS.map((group) => {
         const headingId = uid('states-group');
-        const heading = h('h3', { class: 'states__section-title', id: headingId, tabindex: '-1' }, group.label);
+        const heading = focusTarget(h('h3', { class: 'states__section-title', id: headingId }, group.label));
         const section = h('section', { class: 'states__section', 'aria-labelledby': headingId },
           h('header', { class: 'states__section-head' },
             h('div', { class: 'states__section-text' }, heading, h('p', { class: 'meta' }, group.blurb)),
@@ -542,7 +542,7 @@ export default {
           h('div', { class: 'states__grid' }, sectionCards[group.id]));
         sections[group.id] = { section, heading };
         return section;
-      })));
+      }))));
 
     const main = h('section', { class: 'shell__main', 'aria-label': 'System states' },
       paneHeader({

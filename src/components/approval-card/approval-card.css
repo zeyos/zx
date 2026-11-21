@@ -20,11 +20,6 @@
   border-color: var(--zx-color-border);
 }
 
-.zx-approval-card:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
 :is(
   .zx-approval-card__changes,
   .zx-approval-card__reason,

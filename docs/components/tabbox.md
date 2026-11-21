@@ -31,3 +31,9 @@ restores rounded corners without forking the stylesheet.
 - **Keyboard** — ArrowLeft/Right and Home/End move focus, Enter/Space activate, Delete closes a
   closable tab. The × is a plain glyph rather than a nested button (buttons cannot nest), so
   keyboard and screen-reader users close through Delete; focus lands on the neighbouring tab.
+- **Panel focus** — a panel holding a control is not a Tab stop itself, so Tab from the tab list
+  reaches the control. A panel with nothing focusable inside is a Tab stop (`tabindex="0"`), drawn
+  with the ring inside its edge, so its text can be read and scrolled from the keyboard. This is
+  settled whenever a panel is shown and again as Tab leaves the tab list, so content that changes
+  inside a panel is taken into account. Controls inside a custom element's shadow root are not
+  seen, so a panel whose only controls sit there stays a Tab stop as well.

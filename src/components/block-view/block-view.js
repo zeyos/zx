@@ -4,6 +4,7 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { blocksToMarkdown, blocksToText, figureRow, parseInline } from '../../internal/agent-model.js';
+import { syncScrollStop } from '../../internal/focus-stops.js';
 import { highlight } from '../../internal/highlight.js';
 import { copyButton } from '../copy/copy-button.js';
 
@@ -267,7 +268,7 @@ export class BlockView extends Component {
     this._nodes.push(node);
     if (this._stoppedNote) this._stoppedNote.before(node);
     else this.el.append(node);
-    if (copy.type === 'table') this._syncScrollers();
+    if (copy.type === 'table' || copy.type === 'code') this._syncScrollers();
   }
 
   /** @private @returns {void} */
@@ -311,12 +312,16 @@ export class BlockView extends Component {
   }
 
   /**
-   * A wide table scrolls inside the answer; while it does, its wrapper is a named, focusable
-   * region so the keyboard can scroll it too. A table that fits is not a tab stop.
+   * A wide table or a long code line scrolls inside the answer; while it does, its scroller is a
+   * Tab stop so the keyboard can scroll it too — a table's wrapper a named region. One that fits
+   * is not a Tab stop.
    * @private
    * @returns {void}
    */
   _syncScrollers() {
+    for (const pre of /** @type {NodeListOf<HTMLElement>} */ (this.el.querySelectorAll('.zx-block-view__pre'))) {
+      syncScrollStop(pre);
+    }
     for (const wrap of /** @type {NodeListOf<HTMLElement>} */ (this.el.querySelectorAll('.zx-block-view__table'))) {
       const overflowing = wrap.scrollWidth > wrap.clientWidth + 1;
       if (overflowing && !wrap.hasAttribute('tabindex')) {
@@ -459,11 +464,11 @@ function renderCode(block, msg) {
       h('span', { class: 'zx-block-view__code-language' }, language || msg('blockView.code')),
       copyButton({ text: String(block.code ?? ''), title: msg('blockView.copyCode'), size: 'sm' })),
     block.lines
-      ? h('pre', { class: 'zx-block-view__pre', dataset: { lines: '' }, tabindex: '0' }, h('code', {},
+      ? h('pre', { class: 'zx-block-view__pre', dataset: { lines: '', zxFocus: 'region' } }, h('code', {},
         String(block.code ?? '').split('\n').map((line) => h('span', {
           class: 'zx-block-view__line', style: { '--zx-block-view-indent': `${/^\s*/.exec(line)?.[0].length ?? 0}ch` }
         }, codeSegments(language, line)))))
-      : h('pre', { class: 'zx-block-view__pre', tabindex: '0' }, h('code', {}, codeSegments(language, block.code))));
+      : h('pre', { class: 'zx-block-view__pre', dataset: { zxFocus: 'region' } }, h('code', {}, codeSegments(language, block.code))));
 }
 
 /**
@@ -490,7 +495,7 @@ function renderTable(block, cite) {
     const value = block.align?.[index];
     return value === 'end' || value === 'center' ? value : null;
   };
-  return h('div', { class: 'zx-block-view__table' }, h('table', {},
+  return h('div', { class: 'zx-block-view__table', dataset: { zxFocus: 'region' } }, h('table', {},
     h('thead', {}, h('tr', {}, columns.map((column, index) => h('th', { scope: 'col', dataset: { align: align(index) } },
       inlineNodes(column, cite))))),
     h('tbody', {}, rows.map((row) => h('tr', {}, (Array.isArray(row) ? row : []).map((cell, index) => h('td', {

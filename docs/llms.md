@@ -452,6 +452,8 @@ var(--zx-color-on-accent-solid), var(--zx-focus-ring)` (`--zx-color-on-accent` o
 `--zx-color-accent` fill). Leave the outline transparent rather than removing it: forced colours
 drop every shadow and paint that outline in the system highlight instead. A product that restyles
 the ring keeps it one shadow, at least 2px, and at 3:1; to recolour it, set `--zx-color-ring`.
+The ring marks controls only: an element that takes focus without being one carries
+`data-zx-focus` (see **Focus targets** in the tokens reference).
 
 **Print.** `zx.css` imports `styles/print.css` last. It releases sticky headers and scroll
 containers, drops fills, shadows, zebra striping and focus rings, hides overlays and navigation
@@ -2023,6 +2025,9 @@ panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus retur
   dialog detached until then, rather than parking it on `<body>` outside the theme.
 - **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
 - **Events** — `open`, `close {result}`, `cancel {reason}`.
+- **Focus** — opening focuses an `autofocus` control, else the first focusable one. A panel with
+  nothing focusable takes focus itself (`tabindex="-1"`, outside the Tab order) and draws no focus
+  ring, keeping its elevation: the panel is a surface, not a control (`data-zx-focus="container"`).
 - **Dismissal** — everything the reader does to dismiss an overlay raises `cancel` first, with
   `reason` `'escape'`, `'close-button'` (Dialog/Sheet header ✕), `'button'` (a footer button whose
   action is `'cancel'`), `'backdrop'` (`lightDismiss`), `'outside'` or `'drag'` (Sheet).
@@ -2202,7 +2207,9 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
   not opened from it) leaves the panel open; nothing below an open modal reacts at all. A panel
   opened from inside another overlay closes with that overlay.
 - **Keyboard** — the panel follows its trigger in the Tab order: Tab on the anchor of an open panel
-  moves to the panel's first Tab stop, or onto the panel itself when it has a `tabindex`; Tab past
+  moves to the panel's first Tab stop, or onto the panel itself when it has a `tabindex` of 0 or
+  more (it then shows focus as a region, with the ring inside its edge; a panel only a script
+  focuses draws none); Tab past
   the last stop continues with whatever follows the anchor; Shift+Tab from the first
   stop returns to the anchor. A Tab stop is what the browser itself stops at: a `tabindex="-1"` part
   of a composite (a Select's toggle), a roving toolbar's inactive items, disabled, hidden and inert
@@ -3346,8 +3353,8 @@ can be any registered `Field` type, and its validation may be asynchronous.
   cap on each choice; the caps are `aria-hidden`, since a screen-reader user moves through the
   group with the arrow keys the radios already provide. `Enter` continues, except in a `multiline`
   input. Shortcuts are suppressed while focus is in a text control. Navigating moves focus to the
-  new question's fieldset, which is what gets the prompt announced; failing validation moves it to
-  the first answer control instead.
+  new question's fieldset, which is what gets the prompt announced (it draws no focus ring: it is
+  not a control); failing validation moves it to the first answer control instead.
 <!-- /doc -->
 
 <!-- doc:value-list -->
@@ -3660,7 +3667,10 @@ detail side of a master–detail screen. Give the root a size of its own (a grid
   a release that added or removed panes.
 - **Keyboard and screen readers** — each pane header is a row, not one big button, so the collapse
   toggle and the tab strip can coexist; the toggle carries `aria-expanded` and `aria-controls`.
-  Tabs follow the APG tab pattern with one roving tab stop, Left/Right moving between them.
+  Tabs follow the APG tab pattern with one roving tab stop, Left/Right moving between them. The
+  active panel is a Tab stop itself only while nothing inside it is focusable, with the ring
+  inside its edge, so its text can be read and scrolled; a panel holding a control is not. A scrolling pane
+  body that the browser makes a Tab stop (nothing focusable inside) rings the same way.
   Dividers are focusable `separator`s carrying live `aria-valuenow`/`aria-valuemin`/`aria-valuemax`
   in pixels: Up/Down (or Left/Right when horizontal) resize by 16px, Shift by 64px, and Enter or
   Space collapses the pane before the divider. A divider with nothing to resize is taken out of the
@@ -3699,6 +3709,12 @@ restores rounded corners without forking the stylesheet.
 - **Keyboard** — ArrowLeft/Right and Home/End move focus, Enter/Space activate, Delete closes a
   closable tab. The × is a plain glyph rather than a nested button (buttons cannot nest), so
   keyboard and screen-reader users close through Delete; focus lands on the neighbouring tab.
+- **Panel focus** — a panel holding a control is not a Tab stop itself, so Tab from the tab list
+  reaches the control. A panel with nothing focusable inside is a Tab stop (`tabindex="0"`), drawn
+  with the ring inside its edge, so its text can be read and scrolled from the keyboard. This is
+  settled whenever a panel is shown and again as Tab leaves the tab list, so content that changes
+  inside a panel is taken into account. Controls inside a custom element's shadow root are not
+  seen, so a panel whose only controls sit there stays a Tab stop as well.
 <!-- /doc -->
 
 <!-- doc:stepper -->
@@ -3920,6 +3936,11 @@ menu on narrow widths.
   `overflow: true`, `overflowBelow: '44rem'`, `minVisible: 0`.
 - **Methods** — `setTitle()`, `setItems()`, `setActive()`, `setBadge()`, `setActions()`.
 - **Events** — `change {name}`.
+- **Panels** — items that all carry `content` (a Node, a Component, or a factory called on first
+  selection) make the items an APG tab list with a panel each: ArrowLeft/Right and Home/End move
+  focus, Enter/Space select. The active panel is a Tab stop itself only while nothing inside it is
+  focusable, with the ring inside its edge, so its text can be read and scrolled; a panel holding a
+  control is not, and Tab reaches its first control after the bar's own actions.
 
 **Overflow is a default, not a law.** Collapsing every item behind "More" is right for a top app
 bar and wrong for a phone bottom bar, where the navigation is the point. `overflow: false` keeps
@@ -4159,7 +4180,8 @@ the answer arriving.
   blank line starts a new paragraph.
 - **Events** — `cite {n, source}` from a citation button, `artifact {id}` from an artifact card,
   `end` when a streamed answer is marked finished.
-- **Rendering** — code is a figure with its language, a copy button and a focusable `<pre>`
+- **Rendering** — code is a figure with its language, a copy button and a `<pre>` that is a Tab
+  stop only while a long line scrolls it
   (`lines: true` on a code block numbers its lines and wraps long ones under their own indent, for
   code read at length in an inspector),
   coloured for js, ts, json, sql, python, shell and css (anything else stays plain); a wide table
@@ -4639,7 +4661,8 @@ announces nothing itself; the thread the run belongs to announces its milestones
 - **Focus** — `update()` keeps focus where it was: an action row whose labels, kinds, and icons did
   not change is kept as it is, so the focused button never leaves the DOM; otherwise focus goes to
   the action at the same index, or the nearest one left. When no action is left the panel itself
-  holds focus (`tabindex="-1"`, removed again once focus moves on).
+  holds focus (`tabindex="-1"` with `data-zx-focus="container"`, so no focus ring; both removed
+  again once focus moves on).
 - **Methods** — `update(values)` merges new values and redraws (the clock carries on unless the
   update brings a new `workMs`; `locale`, `msg`, `now`, and `onaction` are fixed), `getState()`
   (the values as copies, `tokenBudget` included, `workMs` counted up to now), `destroy()`.
@@ -4739,6 +4762,10 @@ the application, which owns the conversation and the transport.
 - **Files** — the Attach button, pasting files, and dropping files on the composer (the root shows
   `data-state="dropping"` and a drop label meanwhile) add attachments, filtered by `accept` and
   capped by `maxFiles`.
+- **Focus** — the box is a tray on the chrome tone; the text inside it is a field with the control
+  edge and fill, and it alone draws the focus ring while it is typed into. The box, the chips, the
+  queue and the bar never light up; Attach, Commands, the tools and Send ring only when they hold
+  the focus themselves.
 - **Accessibility** — the `<textarea>` keeps its textbox role. While suggestions show it carries
   `aria-autocomplete="list"`, `aria-controls` (the listbox) and `aria-activedescendant` (the
   highlighted `role="option"`), and a polite status says how many there are. Attachments and
@@ -4827,8 +4854,8 @@ the answer, and the application carries it out.
   now; closes any of the card's open dialogs), `getStatus()`, `getValues()` (a copy, edits
   included), `getEditedKeys()` (`[]` when not edited, `null` when every field is listed),
   `focus()` (the root is `tabindex="-1"`, so a thread can move focus to a request when a run
-  starts waiting), `handleKey(event)` → `boolean`, and `destroy()` (also destroys the card's
-  dialogs, including an open confirmation).
+  starts waiting; it is a container and draws no focus ring), `handleKey(event)` → `boolean`, and
+  `destroy()` (also destroys the card's dialogs, including an open confirmation).
 - **Update in place** — `update()` is for a request the agent revises while it waits, or a record
   that changed. It redraws only what changed: values equal to what is drawn (compared by content,
   so a fresh copy of the same blocks or fields counts as equal) are left alone, and focus stays
@@ -4912,7 +4939,8 @@ only when the application calls `setSteps()`, `upsert()` or `setLabel()`.
   label, icon?, entity?}`) are quiet underlined link buttons under its words, with the glyph when
   `icon` is set. A step with `args`, `result`, `error` or `detail` is a disclosure holding the tool
   name (mono), the detail, the arguments (pretty-printed when they parse as JSON, verbatim
-  otherwise) and the result or the error, each in a focusable `<pre>` with a copy button. A
+  otherwise) and the result or the error, each in a `<pre>` with a copy button, a Tab stop while
+  its text scrolls. A
   `handoff` step reads "Finance agent handed over to Collections agent" beside both authors'
   avatars joined by a dotted line — round for a `person`, a rounded square for an agent or a
   model, and an agent author with `face` as its still `AgentAvatar` — and its own label moves to
@@ -5606,4 +5634,24 @@ stays in the tab order, so focusing it shows it. On touch screens, under `prefer
 and in forced colours it is always visible. Use it only for repeated, secondary per-row actions
 that are reachable another way (a context menu, a keyboard shortcut); a primary action stays
 visible. Hosts do not nest.
+
+**Focus targets.** `.zx-scope` draws the focus ring on whatever matches `:focus-visible`, and
+Chrome matches any focused element once a key has been pressed — even Shift — so a click into a
+focusable panel followed by a keystroke would ring the whole panel like a field. An element that
+takes focus without being a control says which kind it is with `data-zx-focus`:
+- `data-zx-focus="container"` — only a script focuses it (`tabindex="-1"`, never a Tab stop): a
+  view root that keeps its shortcuts reachable, a heading a route change moves the reader to, a
+  panel holding focus after the control in it went away. It draws no ring and no outline, in forced
+  colours either; its own box-shadow (an overlay's elevation) stays.
+- `data-zx-focus="region"` — a Tab stop that is not a control: a scroll region the keyboard has to
+  reach, a tab panel with nothing inside to operate. Keyboard focus there stays visible as a ring
+  inside its edge, drawn as an outline so the region's own content cannot cover it; forced colours
+  paint it in the system highlight.
+
+Set it when the element is created; it only matters while the element has focus. It works on the
+`.zx-scope` element itself as well as on anything inside it. Zx components
+mark their own: the Modal, Dialog and Sheet panel, a Dropdown panel only a script focuses, the
+ApprovalCard and RunStatus roots, Questionnaire's question and review, Surface's verdict and the
+emptied Table and CardView bodies are containers; tab panels, code blocks, a Dropdown panel with a
+`tabindex` of 0 or more, and the scroll regions of Table, Dock and MasterPanel are regions.
 <!-- /doc -->

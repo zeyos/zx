@@ -397,7 +397,8 @@ export class Modal extends Component {
       return;
     }
     // A panel holding nothing focusable has to take focus itself, and is made focusable only for
-    // that: `tabindex="-1"` is programmatic focus, so it adds nothing to the Tab order.
+    // that: `tabindex="-1"` is programmatic focus, so it adds nothing to the Tab order, and
+    // `data-zx-focus="container"` (set in `render()`) keeps the focus ring off the surface.
     const panel = /** @type {HTMLElement} */ (this.el);
     if (!panel.hasAttribute('tabindex')) panel.setAttribute('tabindex', '-1');
     panel.focus();
@@ -409,7 +410,9 @@ export class Modal extends Component {
    */
   render() {
     const dialog = /** @type {HTMLDialogElement} */ (h('dialog', {
-      class: 'zx-modal'
+      class: 'zx-modal',
+      // The panel is a surface, never a control: when it holds focus itself it draws no ring.
+      dataset: { zxFocus: 'container' }
     }, h('div', { class: 'zx-modal__content', ref: 'content' })));
     dialog.dataset.state = 'closed';
     this._mountInitial(dialog);

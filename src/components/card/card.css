@@ -128,8 +128,11 @@
   z-index: 1;
 }
 
+/* The card rings itself (above); the link adds no second ring of its own. Its outline stays,
+   transparent, for forced colours. */
 .zx-card__primary:focus-visible {
   outline-color: transparent;
+  box-shadow: none;
 }
 
 .zx-card__actions,

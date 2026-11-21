@@ -3,6 +3,7 @@ import { h } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { rovingStep } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
+import { syncPanelStop } from '../../internal/focus-stops.js';
 
 /** @typedef {Node|Component|(() => Node|Component)} TabContent */
 
@@ -198,13 +199,14 @@ export class Tabbox extends Component {
       ariaDisabled: normalized.disabled ? 'true' : null,
       dataset: { closable: normalized.closable ? 'true' : null }
     }, children));
+    // A Tab stop only while it holds nothing that is one (`_syncPanelStop()`).
     const panel = h('div', {
       class: 'zx-tabbox__panel',
       id: panelId,
       role: 'tabpanel',
-      tabindex: '0',
       ariaLabelledby: tabId,
-      hidden: true
+      hidden: true,
+      dataset: { zxFocus: 'region' }
     });
     /** @type {TabRecord} */
     const record = { definition: normalized, tab, title, badge, panel, built: false };
@@ -351,6 +353,11 @@ export class Tabbox extends Component {
     if (!tab || !this.refs.tablist.contains(tab)) return;
     const current = this._recordForTab(tab);
     if (!current) return;
+    if (event.key === 'Tab' && !event.shiftKey) {
+      // The panel's content may have changed since it was shown; settle its stop before Tab moves.
+      this._syncPanelStop();
+      return;
+    }
     const enabled = this._enabledTabs();
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
@@ -440,7 +447,18 @@ export class Tabbox extends Component {
     record.tab.setAttribute('aria-selected', 'true');
     record.panel.hidden = false;
     if (record.panel.parentNode !== this.refs.panels) this.refs.panels.append(record.panel);
+    this._syncPanelStop();
     this._setFocused(record, false);
+  }
+
+  /**
+   * Makes the active panel a Tab stop only while nothing inside it is one: Tab from the tab goes
+   * to the panel's first control when it has one, and onto the panel itself when it holds only
+   * text to read or scroll.
+   * @returns {void}
+   */
+  _syncPanelStop() {
+    if (this._active) syncPanelStop(this._active.panel);
   }
 
   /** @param {TabRecord} record @returns {void} */

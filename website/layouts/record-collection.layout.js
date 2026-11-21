@@ -3,7 +3,7 @@ import {
   downloadBlob, formatCurrency, formatDate, formatNumber, formatRelativeTime, h, toCsv
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, dot, iconButton, layoutContext, paneHeader, renderScope,
+  DATE, adaptiveShell, disposer, dot, focusTarget, iconButton, layoutContext, paneHeader, renderScope,
   shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, TODAY, person } from './fixtures.js';
@@ -372,7 +372,7 @@ export default {
       ]
     });
     // The breadcrumb names the page; the heading is there for the outline and for focus.
-    header.prepend(h('h2', { class: 'visually-hidden', tabindex: '-1' }, 'Opportunities'));
+    header.prepend(focusTarget(h('h2', { class: 'visually-hidden' }, 'Opportunities')));
 
     /* ---------------------------------------------------------------- overview -- */
 

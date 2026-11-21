@@ -4,7 +4,7 @@ import {
   formatNumber, formatPercent, formatRelativeTime, h, icon, rovingTabindex, statTile, toCsv
 } from '../../src/index.js';
 import {
-  DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot,
+  DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot, focusTarget,
   iconButton, iconTile, later,
   layoutContext, listTime, loadChartJs, paneHeader, panelBlock, propList, renderScope, shortcuts, suiteNav, toaster,
   unavailablePane, watchTheme
@@ -1171,7 +1171,7 @@ export default {
         let target = state.opener?.isConnected && state.opener.checkVisibility() ? state.opener : null;
         if (!target) {
           target = root.querySelector('.shell__main:not([hidden]) .shell__title');
-          if (target instanceof HTMLElement) target.tabIndex = -1;
+          if (target instanceof HTMLElement) focusTarget(target);
         }
         target?.focus({ preventScroll: true });
       }

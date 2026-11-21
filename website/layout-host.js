@@ -209,7 +209,7 @@ function buildSourceView() {
     'Open file', icon('chevron-right', { size: 14 }));
   const gutter = h('pre', { class: 'gallery-code__gutter', 'aria-hidden': 'true' });
   const code = h('code');
-  const scroller = h('div', { class: 'gallery-code', tabindex: '0', role: 'region' },
+  const scroller = h('div', { class: 'gallery-code', tabindex: '0', 'data-zx-focus': 'region', role: 'region' },
     h('div', { class: 'gallery-code__grid' }, gutter, h('pre', { class: 'gallery-code__body' }, code)));
   let text = '';
   const copy = copyButton({ text: () => text, label: 'Copy', size: 'sm' });

@@ -83,10 +83,6 @@
   letter-spacing: var(--zx-tracking-title);
 }
 
-.gallery-intro__title:focus {
-  outline: none;
-}
-
 /* --------------------------------------------------------------- sections -- */
 
 .gallery-section + .gallery-section {
@@ -380,12 +376,6 @@
   white-space: nowrap;
 }
 
-/* The title takes focus when the popup opens, as the place reading starts; it is not a control. */
-.gallery-popup__title:focus {
-  outline: none;
-  box-shadow: none;
-}
-
 .gallery-popup__category {
   display: inline-flex;
   flex: 0 0 auto;
@@ -532,11 +522,6 @@
   min-block-size: 0;
   overflow: auto;
   overscroll-behavior: contain;
-}
-
-.gallery-code:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: inset var(--zx-focus-ring);
 }
 
 .gallery-code__grid {

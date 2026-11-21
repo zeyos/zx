@@ -52,7 +52,8 @@ only when the application calls `setSteps()`, `upsert()` or `setLabel()`.
   label, icon?, entity?}`) are quiet underlined link buttons under its words, with the glyph when
   `icon` is set. A step with `args`, `result`, `error` or `detail` is a disclosure holding the tool
   name (mono), the detail, the arguments (pretty-printed when they parse as JSON, verbatim
-  otherwise) and the result or the error, each in a focusable `<pre>` with a copy button. A
+  otherwise) and the result or the error, each in a `<pre>` with a copy button, a Tab stop while
+  its text scrolls. A
   `handoff` step reads "Finance agent handed over to Collections agent" beside both authors'
   avatars joined by a dotted line — round for a `person`, a rounded square for an agent or a
   model, and an agent author with `face` as its still `AgentAvatar` — and its own label moves to

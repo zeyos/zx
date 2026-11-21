@@ -28,7 +28,9 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
   not opened from it) leaves the panel open; nothing below an open modal reacts at all. A panel
   opened from inside another overlay closes with that overlay.
 - **Keyboard** — the panel follows its trigger in the Tab order: Tab on the anchor of an open panel
-  moves to the panel's first Tab stop, or onto the panel itself when it has a `tabindex`; Tab past
+  moves to the panel's first Tab stop, or onto the panel itself when it has a `tabindex` of 0 or
+  more (it then shows focus as a region, with the ring inside its edge; a panel only a script
+  focuses draws none); Tab past
   the last stop continues with whatever follows the anchor; Shift+Tab from the first
   stop returns to the anchor. A Tab stop is what the browser itself stops at: a `tabindex="-1"` part
   of a composite (a Select's toggle), a roving toolbar's inactive items, disabled, hidden and inert

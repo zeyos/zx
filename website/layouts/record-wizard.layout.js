@@ -3,7 +3,7 @@ import {
   formatCurrency, formatDate, formatPercent, h
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
+  DATE, adaptiveShell, disposer, focusTarget, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
   shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, NOW, company } from './fixtures.js';
@@ -215,7 +215,7 @@ export default {
       }
     }));
 
-    const heading = h('h2', { class: 'record-title record-title--sm', tabIndex: -1 });
+    const heading = focusTarget(h('h2', { class: 'record-title record-title--sm' }));
     const intro = h('p', { class: 'meta' });
     const content = h('div', { class: 'form-sections record-wizard__content' });
     const stage = h('section', { class: 'record-wizard__stage', 'aria-label': 'Current step' },

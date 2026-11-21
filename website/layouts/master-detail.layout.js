@@ -3,7 +3,7 @@ import {
   formatNumber, formatRelativeTime, h, icon, uid
 } from '../../src/index.js';
 import {
-  adaptiveShell, disposer, iconButton, layoutContext, later, modShortcut, paneHeader, renderScope, shortcuts,
+  adaptiveShell, disposer, focusTarget, iconButton, layoutContext, later, modShortcut, paneHeader, renderScope, shortcuts,
   suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, person } from './fixtures.js';
@@ -225,7 +225,7 @@ export default {
       title: 'No customer selected',
       description: 'Pick a customer from the list to see and edit the account.'
     });
-    const detailBody = h('div', { class: 'shell__body shell__body--padded', tabindex: '-1', 'aria-label': 'Customer' });
+    const detailBody = focusTarget(h('div', { class: 'shell__body shell__body--padded', 'aria-label': 'Customer' }));
 
     const main = h('section', { class: 'shell__main', 'aria-label': 'Customer record' },
       paneHeader({
@@ -441,8 +441,7 @@ export default {
             h('span', {}, `Updated ${formatRelativeTime(record.updated, { now: NOW })}`))));
       if (!hadFocus) return;
       const heading = /** @type {HTMLElement} */ (recordHead.querySelector('h2'));
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+      focusTarget(heading).focus({ preventScroll: true });
     }
 
     /** @returns {boolean} Whether the form holds values the open record does not. */

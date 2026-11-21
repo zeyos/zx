@@ -3,7 +3,7 @@ import {
   button, formatDate, formatRelativeTime, h, uid
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, later, layoutContext, modShortcut, paneHeader, renderScope, shortcuts,
+  DATE, adaptiveShell, disposer, focusTarget, later, layoutContext, modShortcut, paneHeader, renderScope, shortcuts,
   suiteNav, toaster, unavailable, unavailablePane
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
@@ -245,8 +245,7 @@ export default {
     const sections = { profile: profileSection, notifications: notificationsSection, sharing: sharingSection, api: apiSection };
     const elsewhere = h('div', { class: 'settings__elsewhere' });
     const header = paneHeader({ title, size: 'page', leading: shell.navToggle(), actions });
-    const heading = /** @type {HTMLElement} */ (header.querySelector('.shell__title'));
-    heading.tabIndex = -1;
+    const heading = focusTarget(/** @type {HTMLElement} */ (header.querySelector('.shell__title')));
     const main = h('section', { class: 'shell__main', 'aria-label': 'Settings' },
       header,
       h('div', { class: 'shell__body shell__body--padded' },

@@ -89,11 +89,6 @@
   user-select: none;
 }
 
-.zx-block-view__pre:focus-visible {
-  outline-color: transparent;
-  box-shadow: inset var(--zx-focus-ring);
-}
-
 .zx-block-view__token[data-token="keyword"] { color: var(--zx-color-tone-violet-fg); }
 .zx-block-view__token[data-token="string"] { color: var(--zx-color-tone-green-fg); }
 .zx-block-view__token[data-token="number"] { color: var(--zx-color-tone-orange-fg); }
@@ -105,11 +100,6 @@
 .zx-block-view__table {
   overflow-x: auto;
   overflow-wrap: normal;
-}
-
-.zx-block-view__table:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
 }
 
 .zx-block-view__table :is(th, td)[data-align="end"] {

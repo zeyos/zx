@@ -8,6 +8,47 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **`data-zx-focus` marks a focus target that is not a control.** `"container"` — focused only by a
+  script, with `tabindex="-1"` — draws no focus ring, in forced colours either; `"region"` — a Tab
+  stop such as a keyboard scroll region — draws the ring inside its edge, as an outline the
+  region's content cannot cover. Put it on an application's own view
+  roots, headings a route change focuses, and scroll regions.
+
+### Changed
+
+- **The focus ring marks controls only.** Chrome shows keyboard focus on any focused element after
+  any key press, even Shift, so a click into a panel followed by a keystroke ringed the panel like a
+  field. The Modal, Dialog and Sheet panel, a Dropdown panel only a script focuses, the ApprovalCard
+  and RunStatus roots, Questionnaire's question and review, Surface's verdict and an emptied Table
+  or CardView body no longer draw one. Modal no longer rings its panel when it holds focus itself: it keeps its glass
+  elevation instead of an accent outline. Tab panels, code blocks, a Dropdown panel the application
+  puts in the Tab order, and the scroll regions of Table, Dock and MasterPanel draw the ring inside
+  their edge.
+- **Tab panels are Tab stops only when nothing inside them is.** Tabbox, NavigationBar and Dock
+  panels follow the APG tabs pattern: a panel holding a control is no Tab stop of its own, so Tab
+  reaches the control, and a panel of plain text stays reachable to read and scroll. BlockView and RunTrace
+  code blocks are Tab stops only while their text scrolls.
+- **The Composer rings its text, not its box.** Typing used to ring the whole box, chips, tools and
+  Send included. The text is now a field inside the box, with the control edge and fill, lined up
+  with the chips above it and the tools below, and it alone draws the focus ring while it is typed
+  into. The box stays a tray on the chrome tone; the tools and Send ring only when they hold the
+  focus themselves.
+
+### Fixed
+
+- **A linked Card draws one focus ring.** Its primary link no longer adds a second ring inside the
+  card's own.
+- **CopyInput's box rings only for its field.** With focus on the Copy button, the box rang around
+  the button's own ring; the button now rings alone.
+- **ModuleBar shows every pinned module that fits.** With names beside the tiles — AppSidebar's
+  `layout: 'modules'`, expanded — pinned modules moved behind "All modules" while a third of the bar
+  stood empty. Unpinned modules and their section headings were measured although only the
+  catalogue offers them, a heading counted even when none of its modules stayed on the bar, and one
+  name wrapping to two lines charged every row its height. Each row now takes its own height, and a
+  heading only takes room above a module that is shown; no row is cut off.
+
 ## 5.8.1 — 2026-11-17
 
 Placeholder text that meets 4.5:1, the same small API on sibling inputs, cancellable async

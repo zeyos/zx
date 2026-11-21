@@ -5,7 +5,7 @@ import {
   prefersReducedMotion, rovingTabindex, stack, uid, watchMotion
 } from '../../src/index.js';
 import {
-  DATE, SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, iconTile, later, layoutContext, listTime,
+  DATE, SHELL_BREAKPOINTS, adaptiveShell, disposer, focusTarget, iconButton, iconTile, later, layoutContext, listTime,
   paneHeader, renderScope, shortcutSheet, shortcuts, suiteNav, toaster
 } from './kit.js';
 import { ME, NOW, ORGANISATION, person } from './fixtures.js';
@@ -948,7 +948,8 @@ export default {
     const artifactVersions = h('div', { class: 'chat__version-switch' });
     const artifactNote = h('span', { class: 'chat__version-note' });
     const artifactBody = h('div', {
-      class: 'shell__body chat__artifact-body', role: 'region', tabindex: '0', 'aria-label': 'Artifact'
+      class: 'shell__body chat__artifact-body', role: 'region', tabindex: '0', 'data-zx-focus': 'region',
+      'aria-label': 'Artifact'
     });
     const artifactCanvas = renderScope(context);
     const artifactHeader = paneHeader({
@@ -1562,8 +1563,7 @@ export default {
     function focusTitle() {
       const title = titleSlot.querySelector('h2');
       if (!(title instanceof HTMLElement)) return;
-      title.tabIndex = -1;
-      title.focus();
+      focusTarget(title).focus();
     }
 
     /**
@@ -2164,10 +2164,7 @@ export default {
         if (view === 'settings') (shell.single() ? hideSettings : system).focus();
         else {
           const title = /** @type {HTMLElement|null} */ (artifactHeader.querySelector('h2'));
-          if (title) {
-            title.tabIndex = -1;
-            title.focus({ preventScroll: true });
-          }
+          if (title) focusTarget(title).focus({ preventScroll: true });
         }
       }
       const active = document.activeElement;

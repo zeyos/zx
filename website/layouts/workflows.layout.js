@@ -4,7 +4,7 @@ import {
   formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, h, icon, statTile
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, iconButton, iconTile,
+  DATE, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, focusTarget, iconButton, iconTile,
   kbd, later, layoutContext, loadChartJs, modShortcut, paneHeader, panelBlock, propList, renderScope,
   shortcuts, suiteNav, toaster, unavailable, unavailablePane, watchTheme
 } from './kit.js';
@@ -1062,8 +1062,7 @@ export default {
     function focusTitle() {
       const heading = (workflowView.hidden ? pageView : workflowView).querySelector('.shell__title');
       if (!(heading instanceof HTMLElement)) return;
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+      focusTarget(heading).focus({ preventScroll: true });
     }
 
     /** The inspector for the selected step. @returns {void} */
@@ -1280,9 +1279,10 @@ export default {
       // A run's details hold no control, so the scrolling body takes the focus — from the keyboard,
       // and when the inspector opens as a drawer.
       if (!run) {
-        aside.replaceChildren(paneHeader({ title: 'Run' }), h('div', { class: 'shell__body', tabindex: '0' }, emptyState({
-          icon: 'clock-regular', title: 'No run selected', description: 'Select a run to see what happened.', size: 'sm'
-        })));
+        aside.replaceChildren(paneHeader({ title: 'Run' }),
+          h('div', { class: 'shell__body', tabindex: '0', 'data-zx-focus': 'region' }, emptyState({
+            icon: 'clock-regular', title: 'No run selected', description: 'Select a run to see what happened.', size: 'sm'
+          })));
         return;
       }
       const activity = asideScope.own(new ActivityList(null, {
@@ -1291,7 +1291,7 @@ export default {
       const finished = run.status === 'completed' ? run.steps.length : run.done;
       aside.replaceChildren(
         paneHeader({ title: `${run.label} · #${run.id}`, actions: statusBadge(run) }),
-        h('div', { class: 'shell__body', tabindex: '0' },
+        h('div', { class: 'shell__body', tabindex: '0', 'data-zx-focus': 'region' },
           panelBlock('Details', propList([
             ['Started', when(run.started)],
             ['Duration', runDuration(run)],

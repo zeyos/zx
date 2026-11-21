@@ -231,6 +231,7 @@ function keyboardHelpers() {
   const list = h('div', {
     role: 'listbox',
     tabIndex: -1,
+    'data-zx-focus': 'container',
     'aria-label': 'Modules',
     style: {
       display: 'flex', flexWrap: 'wrap', gap: 'var(--zx-space-2)',

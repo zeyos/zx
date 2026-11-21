@@ -606,6 +606,8 @@ function focusSearchDestination() {
       ? document.querySelector(`#section-${CSS.escape(anchor)} > :is(h2, h3)`)
       : article.querySelector('h1');
     if (!(target instanceof HTMLElement)) return;
+    // A place to start reading, not a control: it draws no focus ring.
+    target.dataset.zxFocus = 'container';
     target.tabIndex = -1;
     target.focus({ preventScroll: true });
     target.removeAttribute('tabindex');
@@ -1272,6 +1274,7 @@ function apiTable(item) {
 function apiScroller(table, label) {
   const scroller = element('div', 'docs-api__scroller', undefined, table);
   scroller.tabIndex = 0;
+  scroller.dataset.zxFocus = 'region';
   scroller.setAttribute('role', 'region');
   scroller.setAttribute('aria-label', `${label} API table`);
   return scroller;
@@ -1618,6 +1621,7 @@ function codeDisclosure(code, options = {}) {
     }
     block.id = `${id}-panel`;
     block.tabIndex = 0;
+    block.dataset.zxFocus = 'region';
     block.setAttribute('role', 'tabpanel');
     block.setAttribute('aria-labelledby', `${id}-tab-${active}`);
     body.replaceChildren(codeTabs(id, files, active, select), block);

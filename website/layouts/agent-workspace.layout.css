@@ -99,13 +99,6 @@
   overscroll-behavior: contain;
 }
 
-/* A view's heading takes focus from script when you arrive, so a screen reader says where you
-   are; it is not a control, so it draws no ring. */
-.agents .agents__view :is(h2, h3)[tabindex="-1"]:focus {
-  outline-color: transparent;
-  box-shadow: none;
-}
-
 /* One reading column per view. */
 .agents .agents__view {
   box-sizing: border-box;
@@ -558,14 +551,6 @@
   min-block-size: 40px;
   padding: var(--zx-space-2);
   border-radius: var(--zx-radius-md);
-}
-
-.agents .agents__step:focus {
-  outline-color: transparent;
-}
-
-.agents .agents__step:focus-visible {
-  box-shadow: inset var(--zx-focus-ring);
 }
 
 .agents .agents__step:is([data-status="waiting"], [data-status="blocked"]) {

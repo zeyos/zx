@@ -205,11 +205,13 @@ export class Questionnaire extends Component {
     this._form.setAttribute('novalidate', '');
 
     this._progressHost = h('div', { class: 'zx-questionnaire__progress', hidden: !this.options.progress });
+    // Both take focus only from a script, when a step changes under the reader; neither is a Tab stop.
     this._itemHost = h('fieldset', {
       class: 'zx-questionnaire__item',
-      tabIndex: -1
+      tabIndex: -1,
+      dataset: { zxFocus: 'container' }
     });
-    this._reviewHost = h('div', { class: 'zx-questionnaire__review', tabIndex: -1, hidden: true });
+    this._reviewHost = h('div', { class: 'zx-questionnaire__review', tabIndex: -1, hidden: true, dataset: { zxFocus: 'container' } });
     this._actionsHost = h('div', { class: 'zx-questionnaire__actions' });
     this.refs.item = this._itemHost;
     this.refs.review = this._reviewHost;

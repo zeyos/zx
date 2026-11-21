@@ -2,6 +2,7 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { rovingStep } from '../../core/keyboard.js';
 import { isElement, uid } from '../../core/util.js';
+import { syncPanelStop } from '../../internal/focus-stops.js';
 import { button } from '../button/button.js';
 import { MenuButton } from '../menu-button/menu-button.js';
 
@@ -330,13 +331,14 @@ export class NavigationBar extends Component {
 
     let panel = null;
     if (this._tabMode) {
+      // A Tab stop only while it holds nothing that is one (see `_applyActive()`).
       panel = h('div', {
         class: 'zx-navigation-bar__panel',
         id: panelId,
         role: 'tabpanel',
-        tabindex: '0',
         ariaLabelledby: tabId,
-        hidden: true
+        hidden: true,
+        dataset: { zxFocus: 'region' }
       });
       this.refs.panels.append(panel);
     }
@@ -363,6 +365,7 @@ export class NavigationBar extends Component {
         item.item.setAttribute('aria-selected', String(active));
         item.item.tabIndex = active ? 0 : -1;
         if (item.panel) item.panel.hidden = !active;
+        if (active && item.panel) syncPanelStop(item.panel);
       } else if (active) {
         item.item.setAttribute('aria-current', 'page');
       } else {
@@ -392,6 +395,12 @@ export class NavigationBar extends Component {
     if (!item || !this.refs.items.contains(item)) return;
     const current = this._items.find((record) => record.item === item);
     if (!current) return;
+    if (event.key === 'Tab' && !event.shiftKey) {
+      // The panel's content may have changed since it was shown; settle its stop before Tab moves.
+      const active = this._activeName === null ? null : this._find(this._activeName);
+      if (active?.panel) syncPanelStop(active.panel);
+      return;
+    }
     const enabled = this._enabledItems();
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();

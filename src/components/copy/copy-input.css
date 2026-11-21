@@ -36,7 +36,9 @@
   background: var(--zx-color-bg-control);
 }
 
-.zx-copy-input__box:focus-within {
+/* The box is the field's edge, so it rings while the field has focus; the Copy button inside it
+   rings itself, and the box stays quiet then. */
+.zx-copy-input__box:has(.zx-copy-input__field:focus) {
   border-color: var(--zx-color-accent);
   box-shadow: var(--zx-focus-ring);
 }

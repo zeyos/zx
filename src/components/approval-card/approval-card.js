@@ -281,7 +281,9 @@ export class ApprovalCard extends Component {
 
     root.setAttribute('role', 'group');
     root.setAttribute('aria-labelledby', titleId);
+    // Focusable only for a script that brings the reader to the request; never a Tab stop.
     root.tabIndex = -1;
+    root.dataset.zxFocus = 'container';
 
     this._titleEl = h(`h${level}`, { class: 'zx-approval-card__title', id: titleId }, this._title);
     this._noteEl = h('p', { class: 'zx-approval-card__note', id: uid('zx-approval-card-note') });

@@ -38,7 +38,7 @@ import {
   Checklist, Dropdown, Filter, ListToolbar, MenuButton, NumberField, Pagination, Select, Sheet, SortControl,
   ViewSettings, button, emptyState, formatDate, formatNumber, h, icon, uid
 } from '../../src/index.js';
-import { DATE, disposer, dot, later, layoutContext, renderScope, shortcuts } from './kit.js';
+import { DATE, disposer, dot, focusTarget, later, layoutContext, renderScope, shortcuts } from './kit.js';
 import {
   arityOf, astToFilters, axisChoices, boardLane, bucketOf, bucketValue, conditionCount, filterExpression, filtersToAst,
   groupCount, groupsOf, mergeDrafts, nodeMatches, resolveBoardAxes, sortRecords, valueFor, withGroupRows, withoutDrafts
@@ -1482,7 +1482,7 @@ function overviewViewSettings(core) {
  */
 function overviewBody(core) {
   const { context, options, state, keep, fields, axes, scopes } = core;
-  const body = h('div', { class: 'shell__body overview__body', tabindex: '-1' });
+  const body = focusTarget(h('div', { class: 'shell__body overview__body' }));
   /** @returns {HTMLElement|null} The card grid in the body, when a card shape shows one. */
   const cardList = () => (state.view === 'table' ? null
     : body.querySelector('.zx-card-view__list:not(.zx-card-view__skeletons)'));

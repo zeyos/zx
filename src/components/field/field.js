@@ -439,7 +439,8 @@ function validateAdapter(adapter) {
 
 /** @param {string} message @param {string} id @returns {FieldAdapter} */
 function errorAdapter(message, id) {
-  const el = h('div', { class: 'zx-field__error-control', id, role: 'alert', tabIndex: -1 }, message);
+  // Stands in for a control that could not be built; `focus()` reaches it, Tab does not.
+  const el = h('div', { class: 'zx-field__error-control', id, role: 'alert', tabIndex: -1, dataset: { zxFocus: 'container' } }, message);
   return {
     el,
     get: () => null,

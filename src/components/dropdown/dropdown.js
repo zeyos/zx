@@ -35,7 +35,8 @@ const TABBABLE_SELECTOR = [
  * panel is hosted by that dialog, so `showModal()` does not make it inert.
  *
  * The panel follows its trigger in the Tab order: Tab on the anchor of an open panel moves into
- * the panel's first focusable control (or onto the panel itself when it carries a `tabindex`),
+ * the panel's first focusable control (or onto the panel itself when it carries a `tabindex`, where
+ * it shows focus with the ring inside its edge),
  * Tab past the panel's last control continues after the anchor, and Shift+Tab from the first goes
  * back to the anchor. Closing while focus is inside returns it to the anchor.
  * @fires Dropdown#open
@@ -107,10 +108,23 @@ export class Dropdown extends Component {
   render() {
     const panel = h('div', {
       id: uid('zx-dropdown'),
-      popover: 'manual'
+      popover: 'manual',
+      // A surface, not a control: it draws no ring when a script focuses it (`#syncFocusMarker()`).
+      dataset: { zxFocus: 'container' }
     });
     panel.dataset.state = 'closed';
     return panel;
+  }
+
+  /**
+   * A panel the application put in the Tab order (`tabindex` of 0 or more) is reached from its
+   * anchor's Tab, so it shows keyboard focus as a region, with the ring inside its edge; otherwise
+   * only a script focuses it and it draws no ring.
+   * @returns {void}
+   */
+  #syncFocusMarker() {
+    const reachable = this.el.hasAttribute('tabindex') && this.el.tabIndex >= 0;
+    this.el.dataset.zxFocus = reachable ? 'region' : 'container';
   }
 
   /**
@@ -122,6 +136,7 @@ export class Dropdown extends Component {
     if (this.isOpen() || this.#destroyed) return this;
     const host = this.#host();
     if (this.el.parentElement !== host) host.append(this.el);
+    this.#syncFocusMarker();
     this.#position = position(this.#anchor, this.el, {
       placement: this.options.placement,
       offset: Number(this.options.offset),

@@ -134,7 +134,8 @@ export class Dialog extends Modal {
     const close = this._message('dialog.close', 'Close');
     const dialog = /** @type {HTMLDialogElement} */ (h('dialog', {
       class: 'zx-modal zx-dialog',
-      ariaLabelledby: titleId
+      ariaLabelledby: titleId,
+      dataset: { zxFocus: 'container' }
     },
       h('header', { class: 'zx-dialog__header' },
         h('h2', { class: 'zx-dialog__title', id: titleId, ref: 'title' }),

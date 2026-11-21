@@ -213,13 +213,6 @@
   background: none;
 }
 
-/* The ring of the scrollable code sits inside its rounded corners. */
-.wiki__pre:focus-visible {
-  outline-color: transparent;
-  outline-offset: -2px;
-  box-shadow: inset var(--zx-focus-ring);
-}
-
 /* An image not loaded in this example: a hatched frame where it would be. */
 .wiki__figure-frame {
   display: grid;

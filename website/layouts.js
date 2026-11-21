@@ -227,6 +227,7 @@ function buildPopup() {
     class: 'gallery-popup__title',
     id: 'gallery-popup-title',
     tabindex: '-1',
+    'data-zx-focus': 'container',
     // Initial focus lands on the title, as the dialog pattern recommends for large content: the
     // layout below is a whole application, and its first control is rarely where to begin.
     autofocus: true
@@ -386,6 +387,7 @@ function focusTile(id) {
     return;
   }
   const heading = /** @type {HTMLElement} */ (app.querySelector('.gallery-intro__title'));
+  heading.dataset.zxFocus = 'container';
   heading.tabIndex = -1;
   heading.focus();
   heading.removeAttribute('tabindex');

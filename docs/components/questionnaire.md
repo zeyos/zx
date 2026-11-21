@@ -111,5 +111,5 @@ can be any registered `Field` type, and its validation may be asynchronous.
   cap on each choice; the caps are `aria-hidden`, since a screen-reader user moves through the
   group with the arrow keys the radios already provide. `Enter` continues, except in a `multiline`
   input. Shortcuts are suppressed while focus is in a text control. Navigating moves focus to the
-  new question's fieldset, which is what gets the prompt announced; failing validation moves it to
-  the first answer control instead.
+  new question's fieldset, which is what gets the prompt announced (it draws no focus ring: it is
+  not a control); failing validation moves it to the first answer control instead.

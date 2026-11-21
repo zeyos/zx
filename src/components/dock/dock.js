@@ -6,6 +6,7 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
 import { rovingTabindex } from '../../core/keyboard.js';
 import { storage } from '../../core/storage.js';
 import { clamp, uid } from '../../core/util.js';
+import { syncPanelStop } from '../../internal/focus-stops.js';
 
 /** Storage namespace shared by every dock that opted into persistence. */
 const STORAGE_NAMESPACE = 'dock';
@@ -459,7 +460,8 @@ export class Dock extends Component {
     if (!collapsible) toggle.disabled = true;
 
     const header = h('div', { class: 'zx-dock__header' }, toggle);
-    const body = h('div', { class: 'zx-dock__body', id: bodyId });
+    // A scroller the browser makes a Tab stop when nothing inside it is focusable: a region, not a control.
+    const body = h('div', { class: 'zx-dock__body', id: bodyId, dataset: { zxFocus: 'region' } });
     const element = h('section', {
       class: 'zx-dock__pane',
       dataset: { name, state: 'open' }
@@ -507,13 +509,14 @@ export class Dock extends Component {
           ariaSelected: 'false',
           tabindex: -1
         }, String(tabDefinition.title ?? tabName));
+        // A Tab stop only while it holds nothing that is one (see `_materialize()`).
         const panel = h('div', {
           class: 'zx-dock__panel',
           role: 'tabpanel',
           id: panelId,
           ariaLabelledby: tabId,
-          tabindex: 0,
-          hidden: true
+          hidden: true,
+          dataset: { zxFocus: 'region' }
         });
         list.append(tab);
         body.append(panel);
@@ -521,6 +524,13 @@ export class Dock extends Component {
       }
       header.append(list);
       record.roving = rovingTabindex(list, '.zx-dock__tab', { orientation: 'horizontal' });
+      this.listen(list, 'keydown', (event) => {
+        // The panel's content may have changed since it was shown; settle its stop before Tab moves.
+        const key = /** @type {KeyboardEvent} */ (event);
+        if (key.key !== 'Tab' || key.shiftKey) return;
+        const active = record.tabs.get(record.active);
+        if (active) syncPanelStop(active.panel);
+      });
       this.listen(list, 'click', (event) => {
         const button = /** @type {Element} */ (event.target).closest?.('.zx-dock__tab');
         if (!button || !list.contains(button)) return;
@@ -555,7 +565,8 @@ export class Dock extends Component {
   }
 
   /**
-   * Runs any not-yet-run content factory for whatever the pane currently shows.
+   * Runs any not-yet-run content factory for whatever the pane currently shows, and settles
+   * whether a shown tab panel is a Tab stop itself.
    * @param {Record<string, any>} record Pane record.
    * @returns {void}
    */
@@ -563,9 +574,13 @@ export class Dock extends Component {
     if (record.collapsed) return;
     if (record.tabs) {
       const active = record.tabs.get(record.active);
-      if (!active || active.built) return;
-      active.built = true;
-      appendContent(active.panel, active.content, true);
+      if (!active) return;
+      if (!active.built) {
+        active.built = true;
+        appendContent(active.panel, active.content, true);
+      }
+      // APG tabs: the panel is a Tab stop only while nothing inside it is one.
+      syncPanelStop(active.panel);
       return;
     }
     if (record.built) return;

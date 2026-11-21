@@ -26,10 +26,33 @@
    outline in Chrome/Safari) at the border edge, so a focused control showed a blue border inside
    our accent glow. The replacement outline is transparent rather than removed: forced-colors mode
    drops box-shadows but forces outline-color to a system colour, so focus stays visible there. */
-.zx-scope :focus-visible {
+.zx-scope :focus-visible:where(:not([data-zx-focus])) {
   outline: 2px solid transparent;
   outline-offset: 2px;
   box-shadow: var(--zx-focus-ring);
+}
+
+/* The ring marks the control the next key operates. An element that takes focus without being
+   one says so with `data-zx-focus`, because Chrome rings a focused element after any key press —
+   even Shift — so a click into plain content followed by a keystroke lit a whole panel up like a
+   field:
+   - `container` — only a script focuses it (`tabindex="-1"`, never a Tab stop): a dialog with
+     nothing to operate, a card holding focus after its answered button went away, a heading a
+     view moves the reader to, an application root that keeps its shortcuts reachable. It draws
+     no ring, in forced colours either.
+   - `region` — a Tab stop that is not a control: a scroll region the keyboard has to reach, a tab
+     panel with nothing inside to operate. Keyboard focus there must stay visible, so it keeps the
+     ring, inside its edge rather than around it. The ring is an outline, not an inset shadow: an
+     inset shadow paints under the content, and a table's cells cover their scroller entirely.
+   Either way the element's own box-shadow — a dialog's elevation — is left alone. The marker
+   works on the `.zx-scope` element itself as well as inside it. */
+:is(.zx-scope, .zx-scope *)[data-zx-focus="container"]:focus-visible {
+  outline: none; /* lint: outline-ok — never a Tab stop; only a script focuses it */
+}
+
+:is(.zx-scope, .zx-scope *)[data-zx-focus="region"]:focus-visible {
+  outline: 2px solid var(--zx-color-ring);
+  outline-offset: -2px;
 }
 
 /* Forced colours (Windows high contrast) drop every box-shadow, so the accent ring disappears and
@@ -39,9 +62,10 @@
    system colour. `tests/lint-tokens.js` rejects outline suppression outside a marked exception.
    `!important` because a component's own, more specific `outline-color: transparent` would
    otherwise survive on an element that opts out with `forced-color-adjust: none` (a current item
-   filled with Highlight). Offsets are left to the component, so inset rings stay inset. */
+   filled with Highlight). Offsets are left to the component, so inset rings stay inset. A
+   `data-zx-focus="container"` is never a Tab stop and stays unmarked. */
 @media (forced-colors: active) {
-  .zx-scope :focus-visible {
+  .zx-scope :focus-visible:where(:not([data-zx-focus="container"])) {
     outline: 2px solid Highlight !important;
   }
 }

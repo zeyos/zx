@@ -545,25 +545,16 @@
   margin-inline: 0;
 }
 
-/* One frame around the composer: the text area inside it draws none of its own, and the frame
-   takes the focus ring while the reader writes. */
+/* The composer is a tray holding a text field and its actions. The field is the control, so it
+   keeps its own edge and takes the focus ring while the reader writes; the tray never lights up. */
 .tracker .tracker__composer {
   gap: var(--zx-space-2);
   padding: var(--zx-space-3);
 }
 
-.tracker .tracker__composer:has(.tracker__comment:focus-visible) {
-  border-color: var(--zx-color-border-control);
-  box-shadow: var(--zx-focus-ring);
-}
-
 .tracker .tracker__comment {
   inline-size: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  outline-color: transparent;
+  padding: var(--zx-space-2) var(--zx-control-pad-x);
   resize: vertical;
 }
 

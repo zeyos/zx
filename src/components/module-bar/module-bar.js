@@ -409,8 +409,10 @@ export class ModuleBar extends AppRailPresenter {
   }
 
   /**
-   * Shows the tiles that fit, in bar order, and moves the rest behind "All modules". Everything is
-   * shown first so a bar sized by its content measures as not overflowing and never shrinks itself.
+   * Shows the tiles that fit, in bar order, and moves the rest behind "All modules". Every module
+   * the bar could place is shown first, so a bar sized by its content measures as not overflowing
+   * and never shrinks itself; a module that can only ever be in the catalogue is not, so it takes
+   * no room.
    * @returns {void}
    */
   _layout() {
@@ -420,15 +422,17 @@ export class ModuleBar extends AppRailPresenter {
     const moreRow = list.querySelector(':scope > [data-module-bar-more]');
     const mode = this.el.dataset.allModules;
     const keep = [moduleOf(this._items, this._active)?.id, this._expandedId, this._promoted];
-    let capacity = Infinity;
+    // An always-shown button takes its slot whether or not anything overflows.
+    const reserve = mode === 'always';
+    let partition = partitionModules(this._items, Infinity, keep, reserve);
     if (mode !== 'never' && list.isConnected) {
-      for (const row of rows) row.hidden = false;
+      const placeable = new Set(partition.visible.map((item) => String(item.id)));
+      for (const row of rows) row.hidden = !placeable.has(row.dataset.moduleId);
       if (moreRow) moreRow.hidden = false;
       syncHeadings(list);
-      capacity = measureCapacity(list, this.el.dataset.orientation === 'horizontal', rows.length + 1);
+      const space = measureSpace(list, this.el.dataset.orientation === 'horizontal');
+      if (space) partition = fitModules(this._items, space, keep, reserve);
     }
-    // An always-shown button takes its slot whether or not anything overflows.
-    const partition = partitionModules(this._items, capacity, keep, mode === 'always');
     const visible = new Set(partition.visible.map((item) => String(item.id)));
     for (const row of rows) row.hidden = !visible.has(row.dataset.moduleId);
     syncHeadings(list);
@@ -886,6 +890,77 @@ export function partitionModules(items, capacity = Infinity, keep = [], reserve 
 }
 
 /**
+ * The bar's list as measured with every module it could place shown: its rows, section headings,
+ * and "All modules" button in document order, each with the length it takes along the bar, its
+ * margins included.
+ * @typedef {Object} ModuleBarSpace
+ * @property {number} room Length of the list's content box along the bar.
+ * @property {number} [gap=0] Gap between two shown entries.
+ * @property {Array<{id?: string, heading?: boolean, more?: boolean, size: number}>} entries Shown
+ *   entries: a module row by its `id`, a heading, or the button. A heading takes its room only when
+ *   a module after it, before the next heading, is on the bar.
+ */
+
+/**
+ * Splits modules as `partitionModules()` does, giving it the most slots for which what it places
+ * fits the measured list: each row at its own length, a section heading only where one of its
+ * modules is on the bar, and the "All modules" button when it is shown. So one name that wraps to
+ * two lines costs its extra line, not a tile, and no row is ever cut in half. Kept modules stay
+ * on the bar even when nothing else fits, as with `partitionModules()`.
+ * @param {ModuleItem[]} items Modules.
+ * @param {ModuleBarSpace} space The measured list.
+ * @param {Array<string|number|null|undefined>|string|number|null} [keep=[]] Module ids that must stay visible.
+ * @param {boolean} [reserve=false] The button is shown even when every module fits.
+ * @returns {{visible: ModuleItem[], overflow: ModuleItem[], more: boolean}}
+ */
+export function fitModules(items, space, keep = [], reserve = false) {
+  const fits = (partition) => barExtent(space, partition.visible, reserve || partition.more) <= space.room + 0.5;
+  const all = partitionModules(items, Infinity, keep, reserve);
+  if (fits(all)) return all;
+  // Less than everything needs the button, so every smaller count reserves its slot; without that,
+  // a count equal to the modules would place them all and leave the button out. A smaller count
+  // then never places a module a larger one leaves off, so the length grows with the count and the
+  // largest count that fits is found by bisection. One slot, the kept modules alone, is the floor.
+  let low = 1;
+  let high = all.visible.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (fits(partitionModules(items, middle, keep, true))) low = middle;
+    else high = middle - 1;
+  }
+  return partitionModules(items, low, keep, true);
+}
+
+/**
+ * The length the list's entries take with these modules on the bar.
+ * @param {ModuleBarSpace} space The measured list.
+ * @param {ModuleItem[]} visible Modules on the bar.
+ * @param {boolean} more Whether the "All modules" button is shown.
+ * @returns {number}
+ */
+function barExtent(space, visible, more) {
+  const shown = new Set(visible.map((item) => String(item.id)));
+  let total = 0;
+  let count = 0;
+  let heading = null;
+  for (const entry of space.entries ?? []) {
+    if (entry.heading) {
+      heading = entry;
+      continue;
+    }
+    if (entry.more ? !more : !shown.has(String(entry.id))) continue;
+    if (heading && !entry.more) {
+      total += heading.size;
+      count += 1;
+    }
+    heading = null;
+    total += entry.size;
+    count += 1;
+  }
+  return total + Math.max(0, count - 1) * (space.gap ?? 0);
+}
+
+/**
  * Resolves a module's identity colour: a valid CSS `color` wins, then a known `tone`.
  * @param {{tone?: unknown, color?: unknown}} item Module.
  * @returns {{tone: ModuleTone|null, color: string|null}}
@@ -970,31 +1045,40 @@ function barOrder(items) {
 }
 
 /**
- * How many rows fit the list along its main axis, measured with every row shown.
+ * Measures the list along its main axis for `fitModules()`, as it stands: with every module the
+ * bar could place shown. Null when that already fits, or when the list has not been laid out.
  * @param {HTMLElement} list Bar list.
  * @param {boolean} horizontal Flow.
- * @param {number} count Rows, the button included.
- * @returns {number}
+ * @returns {ModuleBarSpace|null}
  */
-function measureCapacity(list, horizontal, count) {
+function measureSpace(list, horizontal) {
   const overflowing = horizontal ? list.scrollWidth > list.clientWidth + 1 : list.scrollHeight > list.clientHeight + 1;
-  if (!overflowing) return Infinity;
-  // Names may wrap a row to two lines: the tallest row decides, so no row is ever cut in half.
-  const rows = /** @type {HTMLElement[]} */ ([...list.querySelectorAll(':scope > li:not([hidden]):not(.zx-module-bar__heading)')]);
-  if (!rows.length) return Infinity;
-  const headings = /** @type {HTMLElement[]} */ ([...list.querySelectorAll(':scope > li.zx-module-bar__heading:not([hidden])')]);
+  if (!overflowing) return null;
+  const axis = horizontal ? 'Inline' : 'Block';
+  /** @param {CSSStyleDeclaration} style @param {string} prefix @param {string} [suffix=''] @returns {number} */
+  const edges = (style, prefix, suffix = '') => (Number.parseFloat(style[`${prefix}${axis}Start${suffix}`]) || 0)
+    + (Number.parseFloat(style[`${prefix}${axis}End${suffix}`]) || 0);
+  // Lengths are read from the drawn boxes for their fractions, and brought back to layout pixels,
+  // which margins and gaps are in, for a bar drawn scaled (a thumbnail of a layout).
+  const drawn = (element) => element.getBoundingClientRect()[horizontal ? 'width' : 'height'];
+  const laid = horizontal ? list.offsetWidth : list.offsetHeight;
+  const scale = laid > 0 && drawn(list) > 0 ? drawn(list) / laid : 1;
   const style = getComputedStyle(list);
+  const room = laid - edges(style, 'padding') - edges(style, 'border', 'Width');
   const gap = Number.parseFloat(horizontal ? style.columnGap : style.rowGap) || 0;
-  const padding = horizontal
-    ? (Number.parseFloat(style.paddingInlineStart) || 0) + (Number.parseFloat(style.paddingInlineEnd) || 0)
-    : (Number.parseFloat(style.paddingBlockStart) || 0) + (Number.parseFloat(style.paddingBlockEnd) || 0);
-  const size = Math.max(...rows.map((row) => (horizontal ? row.offsetWidth : row.offsetHeight)));
-  const headingSpace = headings.reduce((sum, heading) => sum + gap + (horizontal ? heading.offsetWidth : heading.offsetHeight)
-    + (Number.parseFloat(horizontal ? getComputedStyle(heading).marginInlineStart : getComputedStyle(heading).marginBlockStart) || 0)
-    + (Number.parseFloat(horizontal ? getComputedStyle(heading).marginInlineEnd : getComputedStyle(heading).marginBlockEnd) || 0), 0);
-  const available = (horizontal ? list.clientWidth : list.clientHeight) - padding - headingSpace;
-  if (size <= 0 || available <= 0) return count;
-  return Math.max(1, Math.floor((available + gap) / (size + gap)));
+  /** @type {ModuleBarSpace['entries']} */
+  const entries = [];
+  for (const child of /** @type {HTMLElement[]} */ ([...list.children])) {
+    const childStyle = getComputedStyle(child);
+    if (child.hidden || childStyle.display === 'none') continue;
+    const size = drawn(child) / scale + edges(childStyle, 'margin');
+    if (child.classList.contains('zx-module-bar__heading')) entries.push({ heading: true, size });
+    else if (child.hasAttribute('data-module-bar-more')) entries.push({ more: true, size });
+    else if (child.dataset.moduleId != null) entries.push({ id: child.dataset.moduleId, size });
+  }
+  // A list with no room, or rows without size, has not been laid out: nothing is moved off the bar.
+  if (room <= 0 || !entries.some((entry) => entry.id != null && entry.size > 0)) return null;
+  return { room, gap, entries };
 }
 
 /** @param {HTMLElement[]} entries @param {HTMLElement} current @param {1|-1} direction @returns {HTMLElement|null} */

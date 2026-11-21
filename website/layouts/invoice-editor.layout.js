@@ -565,7 +565,9 @@ export default {
       dataset: { zxTheme: 'light' }
     });
     const sheet = h('div', { class: 'invoicing__sheet' }, paper);
-    const viewport = h('div', { class: 'shell__body invoicing__viewport', tabIndex: 0, 'aria-label': 'Page preview' }, sheet);
+    const viewport = h('div', {
+      class: 'shell__body invoicing__viewport', tabIndex: 0, 'data-zx-focus': 'region', 'aria-label': 'Page preview'
+    }, sheet);
     const zoomMenu = keep(new MenuButton(null, { label: formatPercent(1), kind: 'ghost', placement: 'top', items: [] }));
     const zoomBar = h('div', { class: 'invoicing__zoom', role: 'toolbar', 'aria-label': 'Zoom' },
       iconButton('minus', 'Zoom out', () => stepZoom(-1)),

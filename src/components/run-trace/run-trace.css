@@ -398,11 +398,6 @@ button.zx-run-trace__row:hover {
   background: var(--zx-color-danger-bg);
 }
 
-.zx-run-trace__code:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
 .zx-run-trace__more {
   justify-self: start;
 }

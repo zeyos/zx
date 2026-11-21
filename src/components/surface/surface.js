@@ -1829,7 +1829,7 @@ export class Surface extends Component {
     for (const [id, node] of this._model.nodes) if (this._entry(node.type)?.input) this._dirty.add(id);
     const time = formatTime(reply.at, this.options.locale);
     const verdict = verdictText(reply.action, this._model.actions ?? [], (key, ...args) => this.msg(key, ...args));
-    this._verdict = h('p', { class: 'zx-surface__verdict', tabIndex: -1, dataset: { action: reply.action } },
+    this._verdict = h('p', { class: 'zx-surface__verdict', tabIndex: -1, dataset: { action: reply.action, zxFocus: 'container' } },
       h('span', { class: 'zx-surface__verdict-icon', 'aria-hidden': 'true' },
         icon(CLOSING_ACTIONS.includes(reply.action) || reply.action === 'reject' ? 'x' : 'check', { size: 14 })),
       h('span', {}, time ? this.msg('surface.verdictAt', verdict, time) : verdict));

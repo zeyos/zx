@@ -119,11 +119,6 @@
   box-shadow: inset var(--zx-focus-ring);
 }
 
-.zx-card-view__content[data-empty-focus]:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: inset var(--zx-focus-ring);
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .zx-card-view__group-toggle > .zx-icon {
     transition: transform var(--zx-dur-fast) var(--zx-ease);
@@ -176,6 +171,11 @@
 .zx-record-card:focus-visible {
   outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
+}
+
+/* A loading placeholder only ever holds focus for the view; it is no card to ring. */
+.zx-record-card.zx-card-view__skeleton:focus-visible {
+  box-shadow: none;
 }
 
 /* A selected card is a pick, so it keeps the accent — as a tint over the card and its outline,

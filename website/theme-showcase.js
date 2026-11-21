@@ -555,7 +555,7 @@ function buttonStatesCard(teardown) {
       h('th', { scope: 'row' }, kind.label),
       BUTTON_STATES.map((state) => h('td', {}, stateSpecimen(kind.options, state.id)))))));
   const scroller = h('div', {
-    class: 'studio-states', role: 'region', 'aria-label': 'Button states', tabindex: '0'
+    class: 'studio-states', role: 'region', 'aria-label': 'Button states', tabindex: '0', 'data-zx-focus': 'region'
   }, table);
 
   let removeCopies = () => {};

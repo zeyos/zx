@@ -50,16 +50,6 @@
   min-inline-size: 0;
 }
 
-.zx-questionnaire__item:focus {
-  outline-color: transparent;
-}
-
-.zx-questionnaire__item:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-  border-radius: var(--zx-questionnaire-radius);
-}
-
 /* `<legend>` is laid out by the fieldset rather than by its own display, so it is taken out of
    that flow and placed as an ordinary block before the answers. */
 .zx-questionnaire__prompt {
@@ -288,10 +278,6 @@
 .zx-questionnaire__review {
   display: grid;
   gap: var(--zx-space-3);
-}
-
-.zx-questionnaire__review:focus {
-  outline-color: transparent;
 }
 
 

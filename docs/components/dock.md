@@ -48,7 +48,10 @@ detail side of a master–detail screen. Give the root a size of its own (a grid
   a release that added or removed panes.
 - **Keyboard and screen readers** — each pane header is a row, not one big button, so the collapse
   toggle and the tab strip can coexist; the toggle carries `aria-expanded` and `aria-controls`.
-  Tabs follow the APG tab pattern with one roving tab stop, Left/Right moving between them.
+  Tabs follow the APG tab pattern with one roving tab stop, Left/Right moving between them. The
+  active panel is a Tab stop itself only while nothing inside it is focusable, with the ring
+  inside its edge, so its text can be read and scrolled; a panel holding a control is not. A scrolling pane
+  body that the browser makes a Tab stop (nothing focusable inside) rings the same way.
   Dividers are focusable `separator`s carrying live `aria-valuenow`/`aria-valuemin`/`aria-valuemax`
   in pixels: Up/Down (or Left/Right when horizontal) resize by 16px, Shift by 64px, and Enter or
   Space collapses the pane before the divider. A divider with nothing to resize is taken out of the

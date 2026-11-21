@@ -1,7 +1,9 @@
 /*
  * Composer — the message box of an agent conversation. A filled box on the chrome tone with no
- * frame of its own: the context and attachment chips, the text, and a bar of quiet tools ending in
- * Send. Focus in the text rings the whole box. The `@` suggestions open above it, in the top layer.
+ * frame of its own: a tray holding the context and attachment chips, the text, and a bar of quiet
+ * tools ending in Send. The text is a field with its own edge, and it alone draws the focus ring
+ * while it is typed into; the tray, the chips and the bar never light up. The `@` suggestions open
+ * above it, in the top layer.
  */
 .zx-composer {
   position: relative;
@@ -13,16 +15,12 @@
 .zx-composer__frame {
   position: relative;
   display: grid;
-  gap: var(--zx-space-1);
+  gap: var(--zx-space-2);
   min-inline-size: 0;
-  padding: var(--zx-space-2) var(--zx-space-3);
+  padding: var(--zx-space-2);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-chrome);
   color: var(--zx-color-text);
-}
-
-.zx-composer__frame:has(.zx-composer__input:focus) {
-  box-shadow: var(--zx-focus-ring);
 }
 
 .zx-composer[aria-disabled="true"] .zx-composer__frame {
@@ -31,18 +29,20 @@
 
 /* ------------------------------------------------------------------ text -- */
 
+/* The text is drawn as any text area is — the control edge, fill and radius, its padding — so the
+   box reads as a tray around a field. Focused, it takes the shared ring from the base styles; a
+   quiet-fields region does not take its edge away. */
 .zx-composer .zx-composer__input {
   display: block;
   inline-size: 100%;
   min-block-size: 0;
   margin: 0;
-  padding: var(--zx-space-1);
+  padding: var(--zx-space-2) var(--zx-control-pad-x);
   overflow-y: hidden;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  color: var(--zx-color-text);
   font: inherit;
   font-size: var(--zx-text-md);
   line-height: 1.5;
@@ -55,12 +55,6 @@
 
 .zx-composer .zx-composer__input::placeholder {
   color: var(--zx-color-text-placeholder);
-}
-
-/* The box draws the ring; the text inside it draws none of its own. */
-.zx-composer .zx-composer__input:is(:focus, :focus-visible) {
-  outline-color: transparent;
-  box-shadow: none;
 }
 
 .zx-composer .zx-composer__input:disabled {
@@ -77,7 +71,6 @@
   align-items: center;
   gap: var(--zx-space-1);
   min-inline-size: 0;
-  margin-inline-start: calc(-1 * var(--zx-space-1));
 }
 
 .zx-composer__tools {
@@ -224,7 +217,7 @@
   flex-wrap: wrap;
   gap: var(--zx-space-2);
   margin: 0;
-  padding: var(--zx-space-1) 0 0;
+  padding: 0;
   list-style: none;
 }
 
@@ -477,9 +470,5 @@
     transition:
       background-color var(--zx-dur-fast) var(--zx-ease),
       color var(--zx-dur-fast) var(--zx-ease);
-  }
-
-  .zx-composer__frame {
-    transition: box-shadow var(--zx-dur-fast) var(--zx-ease);
   }
 }

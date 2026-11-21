@@ -4,7 +4,7 @@ import {
   h, icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut,
+  DATE, adaptiveShell, disposer, focusTarget, iconButton, kbd, later, layoutContext, modShortcut,
   paneHeader, panelBlock, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
@@ -582,9 +582,7 @@ export default {
       iconButton('angle-down', 'Next issue', () => move(1), { shortcut: { label: 'J', keys: 'J' } }),
       copyButton, more.toElement(), shell.asideToggle());
 
-    const issueBody = h('div', {
-      class: 'shell__body shell__body--padded', tabindex: '-1', 'aria-label': 'Issue', hidden: true
-    });
+    const issueBody = focusTarget(h('div', { class: 'shell__body shell__body--padded', 'aria-label': 'Issue', hidden: true }));
 
     const header = paneHeader({
       className: 'tracker__header', leading: [shell.navToggle(), crumbs.toElement()], actions: [issueActions]

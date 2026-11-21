@@ -5,7 +5,7 @@ import {
   icon, proseAnchors
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, layoutContext, modShortcut,
+  DATE, adaptiveShell, disposer, focusTarget, iconButton, iconTile, kbd, layoutContext, modShortcut,
   paneHeader, propList, renderScope, sectionLabel, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, person } from './fixtures.js';
@@ -334,7 +334,7 @@ function renderMarkdown(source, hooks) {
     if (!line.trim()) index += 1;
     else if ((match = /^(#{2,4})\s+(.+)$/.exec(line))) {
       const level = match[1].length;
-      const el = h(`h${level}`, { tabIndex: -1, id: hooks.ids ? sectionId(match[2], ids) : null }, inline(match[2], hooks));
+      const el = focusTarget(h(`h${level}`, { id: hooks.ids ? sectionId(match[2], ids) : null }, inline(match[2], hooks)));
       headings.push({ level, text: el.textContent ?? '', el });
       nodes.push(el);
       index += 1;
@@ -419,7 +419,7 @@ function codeBlock(code, language) {
     h('figcaption', { class: 'wiki__code-head' },
       h('span', { class: 'wiki__code-language' }, language),
       copyButton({ text: code, title: 'Copy code', size: 'sm' })),
-    h('pre', { class: 'wiki__pre', tabIndex: 0 }, h('code', {}, code)));
+    h('pre', { class: 'wiki__pre', tabIndex: 0, 'data-zx-focus': 'region' }, h('code', {}, code)));
 }
 
 /**
@@ -667,7 +667,9 @@ export default {
     // Every section heading of the open page ends in a link that copies its address.
     const sectionLinks = context.preview ? null : keep(proseAnchors(article));
     // Focusable, so the reading pane can be scrolled from the keyboard.
-    const readBody = h('div', { class: 'shell__body wiki__read', tabIndex: 0, 'aria-label': 'Page content' }, article);
+    const readBody = h('div', {
+      class: 'shell__body wiki__read', tabIndex: 0, 'data-zx-focus': 'region', 'aria-label': 'Page content'
+    }, article);
 
     const titleInput = h('input', {
       class: 'wiki__title-input', placeholder: 'Untitled', 'aria-label': 'Page title', oninput: () => draftChanged()
@@ -1034,8 +1036,7 @@ export default {
       if (context.preview) return;
       const title = article.querySelector('h1');
       if (toTitle && title instanceof HTMLElement) {
-        title.tabIndex = -1;
-        title.focus({ preventScroll: true });
+        focusTarget(title).focus({ preventScroll: true });
       } else if (!root.contains(document.activeElement)) readBody.focus({ preventScroll: true });
     }
 

@@ -4,7 +4,7 @@ import {
   formatDate, formatNumber, formatPercent, formatRelativeTime, h, icon, stack, statTile, uid
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, dot, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
+  DATE, adaptiveShell, disposer, dot, focusTarget, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
   renderScope, shortcuts, suiteNav, toaster, unavailable, unavailablePane
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
@@ -725,8 +725,7 @@ export default {
     function keepFocus(heading) {
       const active = document.activeElement;
       if (context.preview || !main.contains(active) || (active instanceof HTMLElement && active.checkVisibility())) return;
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+      focusTarget(heading).focus({ preventScroll: true });
     }
 
     /** Writes the item name, its enabled state, and the record subtitle. @returns {void} */

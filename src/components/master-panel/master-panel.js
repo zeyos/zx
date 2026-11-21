@@ -78,9 +78,11 @@ export class MasterPanel extends Component {
         ariaLabel: this.msg('panel.actions')
       })
     );
+    // It scrolls, so with nothing focusable inside the browser makes it a Tab stop: a region.
     const content = h('div', {
       class: 'zx-master-panel__content',
-      ref: 'content'
+      ref: 'content',
+      dataset: { zxFocus: 'region' }
     });
     const footer = h('footer', {
       class: 'zx-master-panel__footer',

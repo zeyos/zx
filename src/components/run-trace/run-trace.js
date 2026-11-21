@@ -5,6 +5,7 @@ import { icon } from '../../core/icons.js';
 import { formatNumber } from '../../core/format.js';
 import { prefersReducedMotion } from '../../core/motion.js';
 import { uid } from '../../core/util.js';
+import { syncScrollStop } from '../../internal/focus-stops.js';
 import {
   AGENT_MESSAGES, STATUS, agentAvatarOptions, authorFace, formatDuration, formatElapsed, initialsOf, normalizeRunState, traceSummary
 } from '../../internal/agent-model.js';
@@ -263,6 +264,9 @@ export class RunTrace extends Component {
       }
     });
     if (this.options.ticking) this.listen(root.ownerDocument, 'visibilitychange', () => this._syncClock());
+    // A width change rewraps the code blocks, which can start or stop them scrolling.
+    this._resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this._syncCodeStops(root)) : null;
+    this._resize?.observe(root);
     this._build(this.options.steps);
     return root;
   }
@@ -391,6 +395,8 @@ export class RunTrace extends Component {
     this._revealTimer = null;
     if (this._clock) clearInterval(this._clock);
     this._clock = null;
+    this._resize?.disconnect();
+    this._resize = null;
     for (const entry of this._entries.values()) this._releaseAvatars(entry);
     this._entries.clear();
     super.destroy();
@@ -531,6 +537,7 @@ export class RunTrace extends Component {
     entry.row = row;
     entry.refs = refs;
     entry.body = body;
+    if (body) this._syncCodeStops(body);
     const again = focusedRef === null ? null
       : /** @type {HTMLElement|null} */ (refs?.querySelector(`[data-ref-index="${focusedRef}"]`) ?? null);
     if (again) again.focus({ preventScroll: true });
@@ -666,11 +673,11 @@ export class RunTrace extends Component {
       h('div', { class: 'zx-run-trace__section-head' },
         h('span', { class: 'zx-run-trace__section-title', id: titleId }, this.msg(keys.title)),
         copyButton({ text: full, title: this.msg(keys.copy), feedback: this.msg('runTrace.copied'), size: 'sm' })),
+      // A Tab stop only while its text scrolls (`_syncCodeStops()`).
       h('pre', {
         class: 'zx-run-trace__code',
-        tabindex: '0',
         'aria-labelledby': titleId,
-        dataset: { tone: kind === 'error' ? 'danger' : null }
+        dataset: { tone: kind === 'error' ? 'danger' : null, zxFocus: 'region' }
       }, shown.text),
       shown.cut ? h('button', {
         type: 'button', class: 'zx-btn zx-run-trace__more', dataset: { kind: 'ghost', size: 'sm', action: 'show-all' }
@@ -689,6 +696,7 @@ export class RunTrace extends Component {
     this._open = open;
     this._summary.setAttribute('aria-expanded', String(open));
     this._list.hidden = !open;
+    if (open) this._syncCodeStops(this._list);
     this._syncClock();
     this.emit('toggle', { id: null, open });
   }
@@ -706,7 +714,20 @@ export class RunTrace extends Component {
     else this._expanded.delete(id);
     entry.row.setAttribute('aria-expanded', String(open));
     entry.body.hidden = !open;
+    if (open) this._syncCodeStops(entry.body);
     this.emit('toggle', { id, open });
+  }
+
+  /**
+   * Makes each code block a Tab stop while, and only while, its text scrolls inside it.
+   * @private
+   * @param {Element} scope Where to look for code blocks.
+   * @returns {void}
+   */
+  _syncCodeStops(scope) {
+    for (const code of /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('.zx-run-trace__code'))) {
+      syncScrollStop(code);
+    }
   }
 
   /**

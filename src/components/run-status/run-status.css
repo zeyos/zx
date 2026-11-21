@@ -12,13 +12,6 @@
   font-size: var(--zx-text-sm);
 }
 
-/* The panel holds focus itself only when an update took away the control that had it. */
-.zx-run-status:focus-visible {
-  border-radius: var(--zx-radius-md);
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
 /* ------------------------------------------------------------------ state -- */
 
 .zx-run-status__state {
