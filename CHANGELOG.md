@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.9.0 — 2026-11-21
+
+Focus rings that mark only the control you operate, tab panels that follow the APG tab sequence, a
+Composer that rings its text field, and a ModuleBar that shows every pinned module that fits.
+
 ### Added
 
 - **`data-zx-focus` marks a focus target that is not a control.** `"container"` — focused only by a
