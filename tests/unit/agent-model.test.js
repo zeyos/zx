@@ -208,18 +208,18 @@ test('RUN_ACTIVITY gives every run state an agent expression', () => {
 
 test('an author face contributes its traits and nothing else; a person or another value has none', () => {
   const face = {
-    seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', material: 'soft', spacing: 2,
+    seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', mouth: 'cat', cheeks: false, material: 'soft', spacing: 2,
     name: 'Spoofed', label: 'Click me', size: 96, animate: true, phase: 0.5, activity: 'needs-you',
-    indicator: false, msg: { 'agent.activity.idle': 'x' }, class: 'evil'
+    expression: 'happy', indicator: false, msg: { 'agent.activity.idle': 'x' }, class: 'evil'
   };
   assert.deepEqual(authorFace({ name: 'Ledger', face }),
-    { seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', material: 'soft', spacing: 2 });
+    { seed: 'agt-1', tone: 'teal', body: 'hexagon', eyes: 'oval', mouth: 'cat', cheeks: false, material: 'soft', spacing: 2 });
   assert.deepEqual(authorFace({ name: 'Ledger', face: true }), {});
   assert.equal(authorFace({ name: 'Ada', kind: 'person', face: true }), null);
   for (const value of [undefined, null, false, 'yes', 1, ['seed']]) assert.equal(authorFace({ name: 'Ledger', face: value }), null);
   assert.equal(authorFace(null), null);
   // Only well-formed traits are kept.
-  assert.deepEqual(authorFace({ face: { seed: '', tone: 7, spacing: 3, eyes: null } }), {});
+  assert.deepEqual(authorFace({ face: { seed: '', tone: 7, spacing: 3, eyes: null, mouth: 1, cheeks: 'yes' } }), {});
 });
 
 test('a number seed is read as text, so an agent has one face wherever it is drawn', () => {
@@ -234,7 +234,7 @@ test('agentAvatarOptions: the place decides how a face is drawn; data says only 
   const data = {
     seed: 'agt-1', name: 'Ledger', tone: 'teal', body: 'drop', eyes: 'square', material: 'soft', spacing: 0,
     size: 96, label: 'Spoofed', animate: true, phase: 0.5, activity: 'needs-you', activityLabel: 'Help', indicator: false,
-    msg: { 'agent.activity.needsYou': 'x' }
+    expression: 'happy', msg: { 'agent.activity.needsYou': 'x' }
   };
   const fixed = { size: 'sm', label: null, animate: false };
   assert.deepEqual(agentAvatarOptions(data, fixed), {
@@ -246,6 +246,8 @@ test('agentAvatarOptions: the place decides how a face is drawn; data says only 
   assert.equal(carried.activity, 'needs-you');
   assert.equal(carried.activityLabel, 'Help');
   assert.equal(carried.indicator, false);
+  assert.equal(carried.expression, 'happy');
+  assert.ok(!('expression' in agentAvatarOptions(data, fixed)), 'an expression is carried only where the place allows it');
   assert.deepEqual(carried.msg, data.msg);
   assert.ok(!('phase' in carried) && carried.size === 'sm' && carried.label === null && carried.animate === false);
   // Fixed options win over carried ones.

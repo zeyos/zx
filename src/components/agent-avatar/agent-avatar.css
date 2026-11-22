@@ -1,8 +1,9 @@
 /*
- * AgentAvatar — a generated face. The component writes `data-tone`, `data-size` and `data-activity`;
- * the face is an SVG in a 64-unit view box whose parts carry `zx-agent-avatar__*` classes: a
- * free-standing silhouette in the tone's solid fill with white eyes and dark pupils. The presets are
- * the Avatar's: 24 / 32 / 40px at the default spacing unit.
+ * AgentAvatar — a generated face. The component writes `data-tone`, `data-size`, `data-activity` and
+ * `data-expression`; the face is an SVG in a 64-unit view box whose parts carry `zx-agent-avatar__*`
+ * classes: a free-standing silhouette in the tone's solid fill with white eyes — dark pupils in
+ * three shapes, solid in the other three — a white mouth and, on some faces, a blush. The presets
+ * are the Avatar's: 24 / 32 / 40px at the default spacing unit.
  */
 .zx-agent-avatar {
   --zx-agent-avatar-size: var(--zx-space-7);
@@ -75,6 +76,32 @@
   stroke-linejoin: round;
 }
 
+/* A filled shape with rounded corners: the open grin. */
+.zx-agent-avatar__fill {
+  fill: var(--zx-color-agent-eye);
+  stroke: var(--zx-color-agent-eye);
+  stroke-linejoin: round;
+}
+
+/*
+ * The blush: a warm spot that fades out at its edge. The component writes a radial gradient into
+ * the face and `--zx-agent-avatar-blush` (that gradient); without it the spot is a flat, faint tint.
+ * The tint is the pink and red tones lifted toward the eye white, so it reads as warmth on every
+ * tone and as a lighter glow on pink and red.
+ */
+.zx-agent-avatar {
+  --zx-agent-avatar-blush-ink: color-mix(in oklab, color-mix(in oklab, var(--zx-color-tone-pink-solid), var(--zx-color-tone-red-solid)) 72%, var(--zx-color-agent-eye));
+}
+
+.zx-agent-avatar__cheek {
+  fill: var(--zx-agent-avatar-blush, color-mix(in srgb, var(--zx-agent-avatar-blush-ink) 55%, transparent));
+}
+
+/* Opacity, not a transparent colour: gradients do not premultiply, and fading toward transparent
+   black would ring the spot in grey. */
+.zx-agent-avatar__blush-core { stop-color: var(--zx-agent-avatar-blush-ink); stop-opacity: .85; }
+.zx-agent-avatar__blush-edge { stop-color: var(--zx-agent-avatar-blush-ink); stop-opacity: 0; }
+
 /* Offline is closed eyes on a faded, colourless face; the dot keeps its own colour. */
 .zx-agent-avatar[data-activity="offline"] > .zx-agent-avatar__face {
   filter: grayscale(1);
@@ -143,19 +170,21 @@
     will-change: transform;
   }
 
-  .zx-agent-avatar[data-animate]:is([data-activity="idle"], [data-activity="thinking"], [data-activity="working"]) .zx-agent-avatar__eye {
+  .zx-agent-avatar[data-animate]:is([data-expression="calm"], [data-expression="listening"], [data-expression="thinking"],
+    [data-expression="focused"], [data-expression="worried"]) .zx-agent-avatar__eye {
     animation: zx-agent-avatar-blink 5.2s var(--zx-agent-avatar-delay, 0s) infinite;
   }
 
-  .zx-agent-avatar[data-animate][data-activity="needs-you"] .zx-agent-avatar__eye {
+  .zx-agent-avatar[data-animate][data-expression="alert"] .zx-agent-avatar__eye {
     animation: zx-agent-avatar-double-blink 3.6s var(--zx-agent-avatar-delay, 0s) infinite;
   }
 
-  .zx-agent-avatar[data-animate][data-activity="thinking"] .zx-agent-avatar__gaze {
+  /* Pupils ponder and scan; solid eyes have none, so the pair moves instead. */
+  .zx-agent-avatar[data-animate][data-expression="thinking"] :is(.zx-agent-avatar__gaze, .zx-agent-avatar__look:not(:has(.zx-agent-avatar__gaze))) {
     animation: zx-agent-avatar-ponder 3.4s ease-in-out var(--zx-agent-avatar-delay, 0s) infinite;
   }
 
-  .zx-agent-avatar[data-animate][data-activity="working"] .zx-agent-avatar__gaze {
+  .zx-agent-avatar[data-animate][data-expression="focused"] :is(.zx-agent-avatar__gaze, .zx-agent-avatar__look:not(:has(.zx-agent-avatar__gaze))) {
     animation: zx-agent-avatar-scan 2.2s ease-in-out var(--zx-agent-avatar-delay, 0s) infinite;
   }
 }
@@ -186,7 +215,9 @@
   .zx-agent-avatar[data-material] .zx-agent-avatar__body { fill: CanvasText; stroke: CanvasText; }
   .zx-agent-avatar__sclera { fill: Canvas; }
   .zx-agent-avatar__line { stroke: Canvas; }
+  .zx-agent-avatar__fill { fill: Canvas; stroke: Canvas; }
   .zx-agent-avatar__pupil { fill: CanvasText; }
+  .zx-agent-avatar__cheek { display: none; }
   .zx-agent-avatar[data-activity] > .zx-agent-avatar__activity { background: CanvasText; }
   .zx-agent-avatar:is([data-activity="idle"], [data-activity="offline"]) > .zx-agent-avatar__activity {
     border-color: CanvasText;

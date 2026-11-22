@@ -109,10 +109,10 @@ import { escapeRegExp } from '../core/util.js';
 /**
  * The AgentAvatar options an author's face takes; name, size, label and activity come from the
  * author and the place it is drawn. `seed` is what keeps the face — the agent's stable id; a
- * number is read as text, so `42` and `'42'` are one face. `spacing` is the trait
- * `AgentAvatar.getTraits()` reports, for a look stored once.
- * @typedef {{seed?: string|number, tone?: string, body?: string, eyes?: string, material?: 'flat'|'soft',
- *   spacing?: 0|1|2}} AuthorFace
+ * number is read as text, so `42` and `'42'` are one face. `spacing`, `mouth` and `cheeks` are
+ * traits `AgentAvatar.getTraits()` reports, for a look stored once.
+ * @typedef {{seed?: string|number, tone?: string, body?: string, eyes?: string, mouth?: string,
+ *   cheeks?: boolean, material?: 'flat'|'soft', spacing?: 0|1|2}} AuthorFace
  */
 /**
  * An agent drawn as its AgentAvatar face where a component would otherwise draw an icon: the
@@ -524,32 +524,34 @@ export function initialsOf(name) {
 }
 
 /** The options that say which face an agent has, never how a place draws it. */
-const FACE_KEYS = Object.freeze(['seed', 'tone', 'body', 'eyes', 'material', 'spacing']);
+const FACE_KEYS = Object.freeze(['seed', 'tone', 'body', 'eyes', 'mouth', 'cheeks', 'material', 'spacing']);
 
 /**
  * What an item's `agent` may set beyond its face where navigation, the Composer and the Launcher
  * draw it: what the agent is doing and how that shows. Size, label and motion stay the place's.
  * @type {ReadonlyArray<string>}
  */
-export const AGENT_ITEM_KEYS = Object.freeze(['activity', 'activityLabel', 'indicator', 'msg']);
+export const AGENT_ITEM_KEYS = Object.freeze(['activity', 'activityLabel', 'expression', 'indicator', 'msg']);
 
 /**
  * Reads a face from what describes it: `true` derives everything, a plain object contributes the
  * `keys` it holds — non-empty strings, a `seed` that is a finite number as text, a `spacing` of 0,
- * 1 or 2 — and anything else is no face.
+ * 1 or 2, a boolean `cheeks` — and anything else is no face.
  * @param {unknown} source
  * @param {ReadonlyArray<string>} keys
- * @returns {Record<string, string|number>|null}
+ * @returns {Record<string, string|number|boolean>|null}
  */
 function readFace(source, keys) {
   if (source === true) return {};
   if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
-  /** @type {Record<string, string|number>} */
+  /** @type {Record<string, string|number|boolean>} */
   const traits = {};
   for (const key of keys) {
     const value = /** @type {Record<string, unknown>} */ (source)[key];
     if (key === 'spacing') {
       if (value === 0 || value === 1 || value === 2) traits.spacing = value;
+    } else if (key === 'cheeks') {
+      if (typeof value === 'boolean') traits.cheeks = value;
     } else if (key === 'seed' && typeof value === 'number' && Number.isFinite(value)) {
       traits.seed = String(value);
     } else if (typeof value === 'string' && value) {
@@ -561,8 +563,8 @@ function readFace(source, keys) {
 
 /**
  * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
- * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes`, `material`
- * and `spacing`, and anything else — a person, another value — means initials. Authors may come
+ * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes`, `mouth`,
+ * `cheeks`, `material` and `spacing`, and anything else — a person, another value — means initials. Authors may come
  * from an agent's own data, so how the face is drawn and named is never read from it.
  * @param {Partial<Author>|null|undefined} author
  * @returns {AuthorFace|null}
@@ -588,7 +590,8 @@ export function agentFaceTraits(agent) {
  * builds one, so an agent described the same way has the same face wherever it is drawn.
  *
  * Only what says which face it is comes from `source` — its `seed` (a string, or a finite number
- * read as text), its `tone`, `body`, `eyes`, `material` and `name` strings and its `spacing` —
+ * read as text), its `tone`, `body`, `eyes`, `mouth`, `material` and `name` strings, its `spacing`
+ * and its `cheeks` —
  * plus the `carry` keys a place lets its data set, as navigation lets an item show what its agent
  * is doing ({@link AGENT_ITEM_KEYS}). Nothing else in it is read, so data never decides how a face
  * is sized, labelled or moved. `fallback` fills in what the source leaves out, such as the name of

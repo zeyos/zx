@@ -313,6 +313,7 @@ const TREE_ATTRS = /* @__PURE__ */ (() => attributes({
   label: rebuiltText({ default: null }),
   'empty-text': rebuiltText(),
   height: rebuiltText({ default: null, normalize: normalizeNumberOrString }),
+  indent: rebuiltText({ default: 'normal', normalize: normalizeNumberOrString }),
   msg: messages()
 }))();
 

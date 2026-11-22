@@ -8,6 +8,38 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **AgentAvatar faces have more character.** Three new eye shapes — `dot`, `capsule` and `pixel`,
+  solid siblings of `round`, `oval` and `square` — a mouth (`mouth: 'smile'|'grin'|'cat'`, or
+  `'none'` for eyes only) and a soft blush (`cheeks`), all derived from the seed like the other
+  traits and reported by `getTraits()`. New exports `AGENT_MOUTHS` and `AGENT_EXPRESSIONS`.
+- **AgentAvatar `expression`.** Each activity now draws a named expression — calm, thinking,
+  focused, alert, worried, asleep — and `expression` shows one on purpose: `happy` when a run
+  finishes or a person arrives, `listening` while a person types to the agent. The dot and the
+  accessible name still follow `activity`. The root carries `data-expression`. Navigation, Composer
+  and Launcher items carry an `agent.expression` like their `agent.activity`.
+- **TreeView `indent`.** `'narrow'` steps each level in by `--zx-space-2` instead of
+  `--zx-space-3`, for a tree in a side menu or another tight column; a number or any CSS length sets
+  a step of your own. `<zx-tree>` takes it as the `indent` attribute.
+
+### Changed
+
+- **Derived agent faces change.** Every derived face now has a mouth and about half a blush; the
+  eyes sit a little higher to make room. The eye table grew from three shapes to six by exactly its
+  own length, so every agent keeps its eye family and about half take the family's solid sibling (an
+  `oval` agent may now have `capsule` eyes). To keep an agent's earlier look, give it its old `eyes`,
+  `mouth: 'none'` and `cheeks: false`; a `material: 'soft'` ramp keeps the plain tone a little
+  higher and lower than before (25% to 55%), across eyes that sit higher. A blocked agent with a
+  mouth looks worried — mouth turned down — instead of flat-eyed; faces without a mouth keep the flat
+  bars. On the tilted pill, the features of a face with a mouth lean with it.
+- **`agentFace()` nests the features.** The drawing is the body's `shape` group and then a
+  `features` group holding `cheeks`, `eyes` and `mouth`; code that took the second shape as the eyes
+  group finds them one level down. It takes an `expression` as a fourth argument.
+- **AgentAvatar `setActivity()` clears an `expression`**, so the face shows the new activity. Use
+  `set({activity, expression})` to change both at once.
+- **RunStatus smiles when its run is done.** Its agent face shows the `happy` expression.
+
 ## 5.9.0 — 2026-11-21
 
 Focus rings that mark only the control you operate, tab panels that follow the APG tab sequence, a

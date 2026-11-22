@@ -344,7 +344,7 @@ const cases = [
       && !('activity' in component.el.dataset), 'clearing the activity did not bring the presence back');
   }),
   componentCase('AgentAvatar', () => new zx.AgentAvatar(null, {
-    seed: 'agt-7f3a', name: 'Ledger', label: 'Ledger', activity: 'working'
+    seed: 'agt-19c2', name: 'Ledger', label: 'Ledger', activity: 'working'
   }), (component) => {
     const face = component.refs.face;
     assert(face.namespaceURI === 'http://www.w3.org/2000/svg' && face.getAttribute('aria-hidden') === 'true',
@@ -353,13 +353,16 @@ const cases = [
       'the activity word is not in the agent avatar name');
     assert(face.querySelector('.zx-agent-avatar__body')
       && face.querySelectorAll('.zx-agent-avatar__pupil').length === 2, 'the token face was not drawn');
+    assert(face.querySelector('.zx-agent-avatar__mouth') && component.el.dataset.expression === 'focused',
+      'the working face has no mouth or no expression');
     const traits = component.getTraits();
-    assert(JSON.stringify(traits) === JSON.stringify(zx.agentTraits('agt-7f3a')), 'getTraits disagrees with agentTraits');
+    assert(JSON.stringify(traits) === JSON.stringify(zx.agentTraits('agt-19c2')), 'getTraits disagrees with agentTraits');
     component.set({ name: 'Ledger (renamed)' });
     assert(JSON.stringify(component.getTraits()) === JSON.stringify(traits), 'a rename changed the face of a seeded agent');
     component.setActivity('blocked', 'Waiting on the bank');
     assert(component.el.getAttribute('aria-label') === 'Ledger, Waiting on the bank', 'activityLabel ignored');
-    assert(!face.querySelector('.zx-agent-avatar__pupil') && !component.refs.activity.hidden, 'blocked eyes or dot missing');
+    assert(component.el.dataset.expression === 'worried' && face.querySelector('.zx-agent-avatar__mouth path')
+      && !component.refs.activity.hidden, 'blocked face or dot missing');
     component.set({ body: 'cross', size: 'sm', indicator: false, label: null });
     assert(component.el.getAttribute('aria-hidden') === 'true' && component.refs.activity.hidden
       && face.querySelectorAll('.zx-agent-avatar__body').length === 1, 'update to the cross body failed');
@@ -388,6 +391,20 @@ const cases = [
     assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
     component.setActivity(null);
     assert(!component.el.hasAttribute('data-animate') && !component.el.dataset.activity, 'clearing the activity left motion on');
+    // An expression stands in for the activity's; the name still follows the activity.
+    component.set({ activity: 'needs-you', expression: 'happy', label: 'Ledger', cheeks: true, size: 48 });
+    assert(component.el.dataset.expression === 'happy' && component.el.getAttribute('aria-label') === 'Ledger, Needs you',
+      'the expression did not draw, or changed the name');
+    const cheek = face.querySelector('.zx-agent-avatar__cheek');
+    assert(cheek && face.querySelector('radialGradient') && getComputedStyle(cheek).fill.startsWith('url('),
+      'a happy face with cheeks did not blush');
+    component.setActivity('blocked');
+    assert(component.el.dataset.expression === 'worried', 'setActivity kept an expression set before it');
+    component.set({ activity: 'needs-you', eyes: 'capsule', mouth: 'none', expression: null });
+    assert(!face.querySelector('.zx-agent-avatar__pupil') && !face.querySelector('.zx-agent-avatar__mouth')
+      && !face.querySelector('radialGradient') && component.el.dataset.expression === 'alert',
+      'solid eyes, no mouth or the activity\'s expression did not draw');
+    component.set({ activity: null, label: null, eyes: null, mouth: null, cheeks: null });
     const agentItems = [{ id: 'ledger', label: 'Ledger', badge: 2, agent: { seed: 'agt-7f3a', activity: 'needs-you' } }];
     const bar = new zx.ModuleBar(null, { items: agentItems });
     const tile = bar.el.querySelector('.zx-module-bar__tile[data-agent] > .zx-agent-avatar');
@@ -2557,6 +2574,19 @@ const cases = [
     assert(component.getSelection().length === 1, 'selection mismatch');
     events.expect();
     component.collapse(1);
+    // `indent` sets the step between levels: named steps follow the spacing unit, a length is the caller's.
+    const step = (indent) => {
+      const tree = new zx.TreeView(null, { items: [{ ID: 1, name: 'One', children: [{ ID: 2, name: 'Two' }] }], expanded: [1], indent });
+      document.body.append(tree.el);
+      const [parent, child] = tree.el.querySelectorAll('.zx-tree__row');
+      const pad = (row) => parseFloat(getComputedStyle(row).paddingInlineStart);
+      const value = pad(child) - pad(parent);
+      tree.destroy();
+      return value;
+    };
+    const steps = [step(undefined), step('narrow'), step(20), step('1.5rem'), step('normal'), step(' Narrow'), step('16'), step('wide')];
+    assert(steps[0] > steps[1] && steps[1] > 0 && steps[2] === 20 && steps[3] === 24 && steps[4] === steps[0]
+      && steps[5] === steps[1] && steps[6] === 16 && steps[7] === steps[0], `indent steps were ${steps.join(', ')}`);
     // `tree.empty` beats the option, and the option beats the default message.
     const read = (options) => {
       const tree = new zx.TreeView(null, { items: [], ...options });

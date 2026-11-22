@@ -100,6 +100,22 @@ export default {
       }
     },
     {
+      title: 'Narrow indent',
+      blurb: 'indent sets how far each level steps in. narrow suits a tree in a side menu, where every '
+        + 'step is width the labels lose; a number or any CSS length sets a step of your own.',
+      layout: 'stack',
+      render: ({ cleanup }) => {
+        const make = (indent, label) => new TreeView(null, {
+          items: catalogue(), expanded: ['inventory', 'warehouses'], indent, label
+        });
+        const trees = [make('normal', 'indent: normal'), make('narrow', 'indent: narrow')];
+        cleanup(() => trees.forEach((tree) => tree.destroy()));
+        return h('div', { class: 'demo-row', style: { alignItems: 'start' } }, trees.map((tree) => h('div', {
+          class: 'demo-field', style: { inlineSize: '13rem' }
+        }, h('span', { class: 'demo-caption' }, tree.el.getAttribute('aria-label')), tree.toElement())));
+      }
+    },
+    {
       title: 'Row actions',
       blurb: 'rowActions(node) gives each row its own commands. They rest out of sight and show '
         + 'while the row is pointed at, focused or selected; past two, the first stays and the rest '

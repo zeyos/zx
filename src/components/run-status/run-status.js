@@ -457,7 +457,8 @@ export class RunStatus extends Component {
       this._faceKey = key;
     }
     if (!this._avatar) return null;
-    this._avatar.setActivity(RUN_ACTIVITY[state]);
+    // A finished run is at rest, and glad of it.
+    this._avatar.set({ activity: RUN_ACTIVITY[state], activityLabel: null, expression: state === 'done' ? 'happy' : null });
     return this._avatar.toElement();
   }
 

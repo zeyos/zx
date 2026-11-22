@@ -3,12 +3,14 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ACTIVITY, AGENT_MESSAGES, normalizeActivity } from '../../internal/agent-model.js';
 import { normalizePhase, presencePhase, trackPresence } from '../../internal/presence-loop.js';
-import { AGENT_PRESET_PX, agentFace, agentTraits } from './agent-face.js';
+import { AGENT_PRESET_PX, agentFace, agentTraits, faceExpression } from './agent-face.js';
 
-export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.js';
+export { AGENT_BODIES, AGENT_EXPRESSIONS, AGENT_EYES, AGENT_MOUTHS, agentFace, agentTraits } from './agent-face.js';
 
 /** @typedef {import('./agent-face.js').AgentBody} AgentBody */
 /** @typedef {import('./agent-face.js').AgentEyes} AgentEyes */
+/** @typedef {import('./agent-face.js').AgentMouth} AgentMouth */
+/** @typedef {import('./agent-face.js').AgentExpression} AgentExpression */
 /** @typedef {import('./agent-face.js').AgentTraits} AgentTraits */
 /** @typedef {import('./agent-face.js').AgentShape} AgentShape */
 /** @typedef {import('../avatar/avatar.js').AvatarTone} AvatarTone */
@@ -24,22 +26,32 @@ export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.j
  * seed with `avatarTone()`, so the face matches an initials tile keyed the same way.
  * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of the
  * fourteen in {@link AGENT_BODIES}.
- * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one.
+ * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one: one of the six
+ * in {@link AGENT_EYES} — `round`, `oval` and `square` with pupils, `dot`, `capsule` and `pixel`
+ * solid.
  * @property {0|1|2|null} [spacing=null] How far apart the eyes sit — narrow, middle, wide —
- * instead of the derived spacing. With `tone`, `body` and `eyes` it gives back a look kept from
- * {@link AgentAvatar#getTraits}.
+ * instead of the derived spacing.
+ * @property {AgentMouth|null} [mouth=null] The mouth's style — `smile`, `grin` or `cat` — instead
+ * of the derived one; `none` draws eyes only.
+ * @property {boolean|null} [cheeks=null] Whether the face blushes when it is calm, happy or
+ * listening, instead of the derived choice. With `tone`, `body`, `eyes`, `spacing` and `mouth` it
+ * gives back a look kept from {@link AgentAvatar#getTraits}.
  * @property {AgentMaterial} [material='flat'] How the body is painted. `flat` is the tone's solid
  * fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain
  * tone across the eyes — from 28px up. Below 28px, when offline, in print and in forced colours a
  * soft body is drawn flat.
  * @property {string|number} [size='md'] Preset — `sm` 24px, `md` 32px, `lg` 40px at the default
- * spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px
- * and below.
+ * spacing unit — or a pixel size. Small sizes draw less: no mouth or pupils below 20px, no blush
+ * below 28px, larger eyes at 24px and below.
  * @property {string|null} [label=null] Accessible label; null makes the avatar decorative.
  * @property {AgentActivity|null} [activity=null] What the agent is doing. The eyes take the
  * activity's expression, the activity dot shows it, and its word joins the accessible name.
  * @property {string|null} [activityLabel=null] The activity's word, when the default is not the one
  * to show.
+ * @property {AgentExpression|null} [expression=null] What the face shows, instead of the activity's
+ * expression: `happy` when a run finished or a person arrives, `listening` while a person types to
+ * the agent, or any activity's own (`calm`, `thinking`, `focused`, `alert`, `worried`, `asleep`).
+ * The dot and the accessible name still follow `activity`; the expression is never the only signal.
  * @property {boolean} [indicator=true] Whether to draw the activity dot. Without it, show the
  * activity's word nearby: the expression alone is a weaker signal.
  * @property {boolean} [animate=false] Moves the avatar with its activity in the shared presence loop
@@ -54,8 +66,8 @@ export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.j
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The values `set()` accepts. */
-const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'spacing', 'material', 'size', 'label',
-  'activity', 'activityLabel', 'indicator', 'animate', 'phase']);
+const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'spacing', 'mouth', 'cheeks', 'material', 'size',
+  'label', 'activity', 'activityLabel', 'expression', 'indicator', 'animate', 'phase']);
 
 /** How long one blink cycle takes, in seconds; the phase offsets the eyes within it. */
 const BLINK_PERIOD = 5.2;
@@ -69,7 +81,13 @@ const SOFT_MIN_PX = 28;
  * contrast they have on the flat fill.
  * @type {ReadonlyArray<readonly [number, string]>}
  */
-const SOFT_STOPS = Object.freeze([[0, 'stop-lit'], [0.3, 'stop-base'], [0.5, 'stop-base'], [1, 'stop-shade']]);
+const SOFT_STOPS = Object.freeze([[0, 'stop-lit'], [0.25, 'stop-base'], [0.55, 'stop-base'], [1, 'stop-shade']]);
+
+/**
+ * The blush's stops, centre to edge: it fades out instead of ending in an outline.
+ * @type {ReadonlyArray<readonly [number, string]>}
+ */
+const BLUSH_STOPS = Object.freeze([[0, 'blush-core'], [0.55, 'blush-core'], [1, 'blush-edge']]);
 
 /**
  * A generated face for an agent without a picture: a coloured geometric silhouette with eyes that
@@ -87,11 +105,14 @@ export class AgentAvatar extends Component {
     body: null,
     eyes: null,
     spacing: null,
+    mouth: null,
+    cheeks: null,
     material: 'flat',
     size: 'md',
     label: null,
     activity: null,
     activityLabel: null,
+    expression: null,
     indicator: true,
     animate: false,
     phase: null,
@@ -109,8 +130,10 @@ export class AgentAvatar extends Component {
     for (const key of SETTABLE) this._state[key] = this.options[key] ?? AgentAvatar.defaults[key];
     /** @type {AgentTraits|null} */
     this._traits = null;
-    /** A document-unique id for the soft ramp, so two avatars never share a paint server. */
-    this._paintId = `zx-agent-avatar-soft-${uniqueSuffix()}`;
+    /** Document-unique ids for the soft ramp and the blush, so two avatars never share a paint server. */
+    const suffix = uniqueSuffix();
+    this._paintId = `zx-agent-avatar-soft-${suffix}`;
+    this._blushId = `zx-agent-avatar-blush-${suffix}`;
     this._destroyed = false;
     /** @type {import('../../internal/presence-loop.js').PresenceHandle|null} */
     this._presence = null;
@@ -142,7 +165,9 @@ export class AgentAvatar extends Component {
   }
 
   /**
-   * Sets what the agent is doing and, optionally, the word for it. `null` clears the activity.
+   * Sets what the agent is doing and, optionally, the word for it. `null` clears the activity. An
+   * `expression` set before is cleared too, so the face shows the new activity; set one again, or
+   * use `set({activity, expression})`, to keep showing it.
    * @param {AgentActivity|null} activity
    * @param {string|null} [label=null] The word, when the default is not the one to show.
    * @returns {this}
@@ -150,6 +175,7 @@ export class AgentAvatar extends Component {
   setActivity(activity, label = null) {
     this._state.activity = activity;
     this._state.activityLabel = label;
+    this._state.expression = null;
     this._sync();
     return this;
   }
@@ -175,7 +201,7 @@ export class AgentAvatar extends Component {
   /**
    * The traits the face is drawn from, so an application can store them — to keep a look across a
    * rename, or to settle a collision between two agents once — and give them back as the `tone`,
-   * `body`, `eyes` and `spacing` options.
+   * `body`, `eyes`, `spacing`, `mouth` and `cheeks` options.
    * @returns {AgentTraits}
    */
   getTraits() {
@@ -198,9 +224,9 @@ export class AgentAvatar extends Component {
 
   /** @returns {AgentTraits} */
   _resolveTraits() {
-    const { seed, name, tone, body, eyes, spacing } = this._state;
+    const { seed, name, tone, body, eyes, spacing, mouth, cheeks } = this._state;
     const key = seed == null || String(seed).trim() === '' ? name : seed;
-    return agentTraits(key, { tone, body, eyes, spacing });
+    return agentTraits(key, { tone, body, eyes, spacing, mouth, cheeks });
   }
 
   /** @returns {number} The rendered size the level of detail is picked for. */
@@ -226,18 +252,33 @@ export class AgentAvatar extends Component {
     }
     if (activity) root.dataset.activity = activity;
     else delete root.dataset.activity;
+    const expression = faceExpression(activity, this._state.expression);
+    root.dataset.expression = expression;
 
     const face = /** @type {SVGSVGElement} */ (this.refs.face);
     const soft = this._state.material === 'soft' && this._px() >= SOFT_MIN_PX && activity !== 'offline';
-    face.replaceChildren(...agentFace(traits, activity, this._px()).map(drawShape));
+    const shapes = agentFace(traits, activity, this._px(), expression);
+    face.replaceChildren(...shapes.map(drawShape));
+    /** @type {import('./agent-face.js').AgentShape[]} */
+    const paints = [];
     if (soft) {
-      face.prepend(drawShape({
-        tag: 'defs', part: null, attrs: {}, children: [{
-          tag: 'linearGradient', part: null,
-          attrs: { id: this._paintId, gradientUnits: 'userSpaceOnUse', x1: 0, y1: 4, x2: 0, y2: 60 },
-          children: SOFT_STOPS.map(([offset, part]) => ({ tag: 'stop', part, attrs: { offset } }))
-        }]
-      }));
+      paints.push({
+        tag: 'linearGradient', part: null,
+        attrs: { id: this._paintId, gradientUnits: 'userSpaceOnUse', x1: 0, y1: 4, x2: 0, y2: 60 },
+        children: SOFT_STOPS.map(([offset, part]) => ({ tag: 'stop', part, attrs: { offset } }))
+      });
+    }
+    if (face.querySelector('.zx-agent-avatar__cheek')) {
+      paints.push({
+        tag: 'radialGradient', part: null, attrs: { id: this._blushId },
+        children: BLUSH_STOPS.map(([offset, part]) => ({ tag: 'stop', part, attrs: { offset } }))
+      });
+      root.style.setProperty('--zx-agent-avatar-blush', `url("#${this._blushId}")`);
+    } else {
+      root.style.removeProperty('--zx-agent-avatar-blush');
+    }
+    if (paints.length) face.prepend(drawShape({ tag: 'defs', part: null, attrs: {}, children: paints }));
+    if (soft) {
       root.dataset.material = 'soft';
       root.style.setProperty('--zx-agent-avatar-paint', `url("#${this._paintId}") var(--zx-agent-avatar-solid)`);
     } else {

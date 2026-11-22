@@ -2,15 +2,24 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from '../../src/components/agent-avatar/agent-face.js';
+import {
+  ACTIVITY_EXPRESSION, AGENT_BODIES, AGENT_EXPRESSIONS, AGENT_EYES, AGENT_MOUTHS, agentFace, agentTraits, faceExpression
+} from '../../src/components/agent-avatar/agent-face.js';
 import { AVATAR_TONES, avatarTone } from '../../src/components/avatar/avatar.js';
 
-/** A few seeds pinned to their faces. The generator is contract; see the table-order test. */
+/**
+ * A few seeds pinned to their faces. The generator is contract; see the table-order test. When the
+ * eye table grew from three shapes to six these three took their families' solid siblings — oval to
+ * capsule, square to pixel, round to dot — and every face gained a mouth and a cheeks choice.
+ */
 const PINNED = {
-  'agt-7f3a': { tone: 'violet', body: 'trapezoid', eyes: 'oval', spacing: 0 },
-  Ledger: { tone: 'orange', body: 'clover', eyes: 'square', spacing: 0 },
-  Nova: { tone: 'violet', body: 'drop', eyes: 'round', spacing: 2 }
+  'agt-7f3a': { tone: 'violet', body: 'trapezoid', eyes: 'capsule', spacing: 0, mouth: 'grin', cheeks: true },
+  Ledger: { tone: 'orange', body: 'clover', eyes: 'pixel', spacing: 0, mouth: 'cat', cheeks: false },
+  Nova: { tone: 'violet', body: 'drop', eyes: 'dot', spacing: 2, mouth: 'grin', cheeks: false }
 };
+
+/** The eye shapes drawn with pupils. */
+const PUPIL_EYES = ['round', 'oval', 'square'];
 
 /** Every shape in a drawing, depth first. */
 const flatten = (shapes) => shapes.flatMap((shape) => [shape, ...flatten(shape.children ?? [])]);
@@ -20,7 +29,34 @@ const seeds = (count) => Array.from({ length: count }, (_, index) => `agent-${in
 test('the trait tables and their order are fixed', () => {
   assert.deepEqual([...AGENT_BODIES], ['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
     'wedge', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
-  assert.deepEqual([...AGENT_EYES], ['round', 'oval', 'square']);
+  assert.deepEqual([...AGENT_EYES], ['round', 'oval', 'square', 'dot', 'capsule', 'pixel']);
+  assert.deepEqual([...AGENT_MOUTHS], ['smile', 'grin', 'cat']);
+  assert.deepEqual([...AGENT_EXPRESSIONS], ['calm', 'happy', 'listening', 'thinking', 'focused', 'alert', 'worried', 'asleep']);
+});
+
+test('the eye table grew by its own length, so every agent kept its eye family', () => {
+  // The pick of the three-shape table, as it was: FNV-1a over key and salt, then the Murmur mixer.
+  const before = (seed) => {
+    const text = `${String(seed).trim().normalize('NFC').toLowerCase()}\u0000eyes`;
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    hash ^= hash >>> 16;
+    hash = Math.imul(hash, 0x85ebca6b);
+    hash ^= hash >>> 13;
+    hash = Math.imul(hash, 0xc2b2ae35);
+    hash ^= hash >>> 16;
+    return ['round', 'oval', 'square'][(hash >>> 0) % 3];
+  };
+  let kept = 0;
+  for (const seed of seeds(1200)) {
+    const index = AGENT_EYES.indexOf(agentTraits(seed).eyes);
+    assert.equal(AGENT_EYES[index % 3], before(seed), seed);
+    if (index < 3) kept += 1;
+  }
+  assert.ok(kept > 500 && kept < 700, `about half keep their exact eyes: ${kept}`);
 });
 
 test('pinned seeds keep their faces', () => {
@@ -45,6 +81,9 @@ test('overrides fix one trait and leave the rest derived; unknown ones are ignor
     { ...derived, tone: 'teal', body: 'hexagon', eyes: 'square' });
   assert.deepEqual(agentTraits('agt-7f3a', { tone: 'chartreuse', body: 'star', eyes: 'chevron' }), derived);
   assert.ok(AVATAR_TONES.includes(agentTraits('agt-7f3a', { tone: 'slate' }).tone));
+  assert.deepEqual(agentTraits('agt-7f3a', { mouth: 'cat', cheeks: false }), { ...derived, mouth: 'cat', cheeks: false });
+  assert.equal(agentTraits('agt-7f3a', { mouth: 'none' }).mouth, 'none', 'none is a mouth a face can be given');
+  assert.deepEqual(agentTraits('agt-7f3a', { mouth: 'fangs', cheeks: /** @type {any} */ ('yes') }), derived);
 });
 
 test('every trait value is reachable and traits do not follow the tone', () => {
@@ -52,6 +91,8 @@ test('every trait value is reachable and traits do not follow the tone', () => {
   assert.deepEqual(new Set(all.map((traits) => traits.body)), new Set(AGENT_BODIES));
   assert.deepEqual(new Set(all.map((traits) => traits.eyes)), new Set(AGENT_EYES));
   assert.deepEqual(new Set(all.map((traits) => traits.spacing)), new Set([0, 1, 2]));
+  assert.deepEqual(new Set(all.map((traits) => traits.mouth)), new Set(AGENT_MOUTHS), 'none is never derived');
+  assert.deepEqual(new Set(all.map((traits) => traits.cheeks)), new Set([true, false]));
   // Within one tone the bodies still spread: the body is not a function of the colour.
   for (const tone of new Set(all.map((traits) => traits.tone))) {
     const bodies = new Set(all.filter((traits) => traits.tone === tone).map((traits) => traits.body));
@@ -75,27 +116,146 @@ test('every body keeps its eyes inside the view box, clear of the edge', () => {
   }
 });
 
-test('a face draws its body and two eyes with pupils, and drops the pupils below 20px', () => {
-  const traits = agentTraits('Ledger');
+test('a face draws its body, two eyes with pupils and a mouth, and draws less when small', () => {
+  const traits = { ...agentTraits('Ledger'), eyes: 'square', mouth: 'smile', cheeks: true };
   const face = agentFace(traits, 'idle', 32);
+  const count = (shapes, part) => parts(shapes).filter((name) => name === part).length;
   assert.ok(parts(face).includes('body'));
-  assert.equal(parts(face).filter((part) => part === 'eye').length, 2);
-  assert.equal(parts(face).filter((part) => part === 'pupil').length, 2);
-  assert.equal(parts(agentFace(traits, 'idle', 20)).filter((part) => part === 'pupil').length, 2);
-  assert.equal(parts(agentFace(traits, 'idle', 16)).filter((part) => part === 'pupil').length, 0);
+  assert.equal(count(face, 'eye'), 2);
+  assert.equal(count(face, 'pupil'), 2);
+  assert.equal(count(face, 'mouth'), 1);
+  assert.equal(count(face, 'cheek'), 2);
+  assert.equal(count(agentFace(traits, 'idle', 20), 'pupil'), 2);
+  assert.equal(count(agentFace(traits, 'idle', 20), 'mouth'), 1, 'a 20px face keeps its mouth');
+  assert.equal(count(agentFace(traits, 'idle', 24), 'cheek'), 0, 'no blush below 28px');
+  assert.equal(count(agentFace(traits, 'idle', 16), 'pupil'), 0);
+  assert.equal(count(agentFace(traits, 'idle', 16), 'mouth'), 0, 'no mouth below 20px');
   assert.deepEqual(agentFace(traits, null, 32), face, 'no activity draws the idle face');
   assert.deepEqual(agentFace(traits, 'dancing', 32), face, 'an unknown activity draws the idle face');
+  for (const eyes of ['dot', 'capsule', 'pixel']) {
+    const solid = agentFace({ ...traits, eyes }, 'idle', 48);
+    assert.equal(count(solid, 'eye'), 2, eyes);
+    assert.equal(count(solid, 'pupil'), 0, `${eyes} eyes are solid`);
+  }
+  // Traits from before faces had a mouth draw eyes only, centred where they always were.
+  const classic = agentFace({ tone: 'blue', body: 'circle', eyes: 'round', spacing: 1 }, 'idle', 48);
+  assert.equal(count(classic, 'mouth') + count(classic, 'cheek'), 0);
+  assert.equal(flatten(classic).find((shape) => shape.part === 'sclera').attrs.cy, 30);
+  assert.equal(count(agentFace({ ...traits, mouth: 'none' }, 'idle', 48), 'mouth'), 0);
+  assert.equal(count(agentFace({ ...traits, cheeks: false }, 'idle', 48), 'cheek'), 0);
 });
 
-test('each activity has its own static expression', () => {
-  const traits = agentTraits('Ledger');
-  const drawings = ['idle', 'thinking', 'working', 'needs-you', 'blocked', 'offline']
-    .map((activity) => JSON.stringify(agentFace(traits, activity, 48)));
-  assert.equal(new Set(drawings).size, 6, 'two activities draw the same face');
-  const blocked = agentFace(traits, 'blocked', 48);
-  assert.ok(!parts(blocked).includes('pupil') && flatten(blocked).filter((shape) => shape.part === 'sclera').every((shape) => shape.tag === 'rect'));
-  const offline = agentFace(traits, 'offline', 48);
-  assert.ok(!parts(offline).includes('pupil') && parts(offline).filter((part) => part === 'line').length === 2);
+test('the blush shows only on a content face', () => {
+  const traits = { ...agentTraits('Ledger'), mouth: 'smile', cheeks: true };
+  const blushing = AGENT_EXPRESSIONS.filter((expression) => parts(agentFace(traits, null, 48, expression)).includes('cheek'));
+  assert.deepEqual(blushing, ['calm', 'happy', 'listening']);
+});
+
+test('each activity has its own static expression, and an expression can stand in for it', () => {
+  const activities = ['idle', 'thinking', 'working', 'needs-you', 'blocked', 'offline'];
+  for (const traits of [agentTraits('Ledger'), { tone: 'blue', body: 'circle', eyes: 'square', spacing: 1 }]) {
+    const drawings = activities.map((activity) => JSON.stringify(agentFace(traits, activity, 48)));
+    assert.equal(new Set(drawings).size, 6, 'two activities draw the same face');
+    for (const activity of activities) {
+      assert.deepEqual(agentFace(traits, null, 48, ACTIVITY_EXPRESSION[activity]), agentFace(traits, activity, 48), activity);
+    }
+    const all = AGENT_EXPRESSIONS.map((expression) => JSON.stringify(agentFace(traits, 'idle', 48, expression)));
+    assert.equal(new Set(all).size, AGENT_EXPRESSIONS.length, 'two expressions draw the same face');
+  }
+  assert.equal(faceExpression('needs-you', 'happy'), 'happy', 'the expression wins over the activity');
+  assert.equal(faceExpression('needs-you', 'smug'), 'alert', 'an unknown expression is ignored');
+  assert.equal(faceExpression(null, null), 'calm');
+  const eyesOf = (shapes) => flatten(shapes.find((shape) => shape.part === 'features').children.find((shape) => shape.part === 'eyes').children);
+  // Without a mouth, trouble shows as flat bars; with one, the mouth turns down.
+  const classic = { tone: 'blue', body: 'circle', eyes: 'square', spacing: 1 };
+  const bars = eyesOf(agentFace(classic, 'blocked', 48));
+  assert.ok(!bars.some((shape) => shape.part === 'pupil') && bars.filter((shape) => shape.part === 'sclera').every((shape) => shape.tag === 'rect'));
+  for (const traits of [classic, agentTraits('Ledger')]) {
+    for (const expression of ['asleep', 'happy']) {
+      const eyes = eyesOf(agentFace(traits, null, 48, expression));
+      assert.ok(!eyes.some((shape) => shape.part === 'pupil') && eyes.filter((shape) => shape.part === 'line').length === 2, expression);
+    }
+  }
+  const listening = agentFace(agentTraits('Ledger'), null, 48, 'listening').find((shape) => shape.part === 'features');
+  assert.match(String(listening.attrs.transform), /^rotate\(/, 'a listening face tilts');
+});
+
+/**
+ * The box a drawn shape covers, its stroke included. Paths take the commands the face uses: M, H, Z,
+ * a quadratic Q measured at its true extreme, and A as the lower half of its ellipse (the grin).
+ */
+function bounds(shape) {
+  const a = shape.attrs;
+  const half = (Number(a['stroke-width']) || 0) / 2;
+  let box;
+  if (shape.tag === 'circle') box = [a.cx - a.r, a.cy - a.r, a.cx + a.r, a.cy + a.r];
+  else if (shape.tag === 'ellipse') box = [a.cx - a.rx, a.cy - a.ry, a.cx + a.rx, a.cy + a.ry];
+  else if (shape.tag === 'rect') box = [a.x, a.y, a.x + a.width, a.y + a.height];
+  else {
+    const xs = []; const ys = [];
+    let x = 0; let y = 0;
+    /** The extreme of one coordinate of a quadratic, or null when it lies at an end. */
+    const extreme = (p0, p1, p2) => {
+      const denominator = p0 - 2 * p1 + p2;
+      if (denominator === 0) return null;
+      const t = (p0 - p1) / denominator;
+      return t > 0 && t < 1 ? (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t ** 2 * p2 : null;
+    };
+    for (const [, command, args] of String(a.d).matchAll(/([MQHAZ])([^MQHAZ]*)/g)) {
+      const n = args.trim().split(/[\s,]+/).filter(Boolean).map(Number);
+      if (command === 'M') { [x, y] = n; }
+      else if (command === 'H') { [x] = n; }
+      else if (command === 'A') { ys.push(y + n[1]); [x, y] = [n[5], n[6]]; }
+      else if (command === 'Q') {
+        for (let index = 0; index < n.length; index += 4) {
+          const [cx, cy, ex, ey] = n.slice(index, index + 4);
+          const ix = extreme(x, cx, ex); const iy = extreme(y, cy, ey);
+          if (ix !== null) xs.push(ix);
+          if (iy !== null) ys.push(iy);
+          [x, y] = [ex, ey];
+          xs.push(x); ys.push(y);
+        }
+        continue;
+      }
+      if (command !== 'Z') { xs.push(x); ys.push(y); }
+    }
+    box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  }
+  return [box[0] - half, box[1] - half, box[2] + half, box[3] + half];
+}
+
+test('every feature stays in the view box, and the mouth stays clear of the eyes', () => {
+  const drawn = (shapes, part) => flatten(shapes).filter((shape) => shape.part === part)
+    .flatMap((shape) => flatten(shape.children ?? [])).filter((shape) => !shape.children);
+  for (const [body, MOUTH] of AGENT_BODIES.flatMap((name) => AGENT_MOUTHS.map((mouth) => [name, mouth]))) {
+    for (const eyes of AGENT_EYES) {
+      for (const spacing of [0, 1, 2]) {
+        for (const px of [24, 48]) {
+          for (const expression of AGENT_EXPRESSIONS) {
+            const face = agentFace({ tone: 'blue', body, eyes, spacing, mouth: MOUTH, cheeks: true }, null, px, expression);
+            const label = `${body} ${eyes} ${spacing} ${px}px ${expression}`;
+            for (const shape of [...drawn(face, 'eyes'), ...drawn(face, 'mouth'), ...drawn(face, 'cheeks')]) {
+              const [left, top, right, bottom] = bounds(shape);
+              assert.ok(left >= 3 && top >= 3 && right <= 61 && bottom <= 61, label);
+            }
+            const eyeFoot = Math.max(...drawn(face, 'eyes').map((shape) => bounds(shape)[3]));
+            const mouthTop = Math.min(...drawn(face, 'mouth').map((shape) => bounds(shape)[1]));
+            assert.ok(mouthTop - eyeFoot >= 0.5, `${label}: the mouth touches the eyes (${eyeFoot} / ${mouthTop})`);
+            // The blush fades out toward its edge; what is visibly tinted keeps clear of the mouth.
+            for (const cheek of drawn(face, 'cheeks')) {
+              const { cx, cy, rx, ry } = cheek.attrs;
+              const [left, top, right, bottom] = [cx - rx * 0.8, cy - ry * 0.8, cx + rx * 0.8, cy + ry * 0.8];
+              for (const mouthShape of drawn(face, 'mouth')) {
+                const box = bounds(mouthShape);
+                const apart = right <= box[0] || left >= box[2] || bottom <= box[1] || top >= box[3];
+                assert.ok(apart, `${label}: the blush sits on the mouth`);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 });
 
 test('the drawing is a copy: changing it never changes the next one', () => {
@@ -127,11 +287,11 @@ test('every pupil stays inside its eye white, in every activity, eye shape and s
     }
     return true;
   };
-  for (const eyes of AGENT_EYES) {
-    for (const activity of ['idle', 'thinking', 'working', 'needs-you']) {
+  for (const eyes of PUPIL_EYES) {
+    for (const activity of ['idle', 'thinking', 'working', 'needs-you', 'blocked']) {
       for (const px of [20, 24, 32, 40, 48, 64]) {
         for (const spacing of [0, 1, 2]) {
-          const drawn = flatten(agentFace({ tone: 'blue', body: 'circle', eyes, spacing }, activity, px))
+          const drawn = flatten(agentFace({ tone: 'blue', body: 'circle', eyes, spacing, mouth: 'smile' }, activity, px))
             .filter((shape) => shape.part === 'eye');
           assert.equal(drawn.length, 2);
           for (const eye of drawn) {
@@ -146,7 +306,7 @@ test('every pupil stays inside its eye white, in every activity, eye shape and s
 });
 
 test('the pupils still point the way each activity looks', () => {
-  for (const eyes of AGENT_EYES) {
+  for (const eyes of PUPIL_EYES) {
     const traits = { tone: 'blue', body: 'circle', eyes, spacing: 1 };
     const pupil = (activity) => flatten(agentFace(traits, activity, 48)).find((shape) => shape.part === 'pupil').attrs;
     const centre = (activity) => flatten(agentFace(traits, activity, 48)).find((shape) => shape.part === 'sclera').attrs;
@@ -169,6 +329,8 @@ test('spacing is a trait override, so the traits getTraits() reports give the sa
   assert.deepEqual(agentTraits('agt-7f3a', { spacing: /** @type {any} */ ('1') }), derived);
   const stored = agentTraits('Ledger');
   assert.deepEqual(agentTraits('A new name', stored), stored, 'the stored traits keep the look across a rename');
+  const flipped = { ...stored, mouth: 'none', cheeks: !stored.cheeks };
+  assert.deepEqual(agentTraits('A new name', flipped), flipped, 'a mouth and cheeks choice round-trips too');
 });
 
 /* ------------------------------------------------------------------ presence loop -- */

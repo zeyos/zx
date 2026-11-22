@@ -14,7 +14,8 @@ import { AGENT_ITEM_KEYS, agentAvatarOptions } from './agent-model.js';
  * @property {string|Node|{toElement: () => Node|null}|((context: Record<string, any>, item: AppNavItem) => Node|null)} [icon] Icon name, node, component, or factory.
  * @property {AppNavAgent|true} [agent] Draws the item as an agent: an AgentAvatar built from these
  *   options (`true` for none) in place of `icon`, sized by the slot it sits in. `name` defaults to
- *   the item's label. The face shows the agent's `activity` at rest — navigation does not animate —
+ *   the item's label. The face shows the agent's `activity`, or its `expression` when it has one, at
+ *   rest — navigation does not animate —
  *   at the small level of detail and flat, whatever the slot measures, and the activity's word
  *   joins the control's accessible name ("Ledger, Needs you").
  * @property {string|number} [badge] Count or status badge.

@@ -8,6 +8,12 @@
   font-size: var(--zx-control-font-size);
 }
 
+/* `indent: 'narrow'`: for a tree in a side menu or another tight column, where every level's step
+   is width the labels lose. The twisty and the icon still mark the nesting. */
+.zx-tree[data-indent="narrow"] {
+  --zx-tree-indent: var(--zx-space-2);
+}
+
 .zx-tree__row {
   display: flex;
   align-items: center;

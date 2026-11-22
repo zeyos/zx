@@ -15,7 +15,7 @@ mutate the caller's data.
   (lazy children; mark a branch with `hasChildren: true` — it counts as open only once its
   children are loaded, so → and `toggle()` load it, `*` loads and opens lazy siblings, and
   `expandAll()`, filtering and `expanded` leave unloaded branches closed), `filter`, `emptyText`, `height`,
-  `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
+  `indent: 'normal'|'narrow'|<pixels>|<CSS length>`, `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
   `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`, and
   `emptyText: null` shows no text.
 - **Row actions** — `rowActions(node)` returns the row's commands: `{icon, label, onSelect(node),
@@ -46,3 +46,8 @@ mutate the caller's data.
   `--zx-color-bg-current` fill, the text colour, a semibold label. A `selection: 'multi'` tree is a
   set of picks and keeps the accent tint. Icons, folders included, are drawn in
   `--zx-color-text-subtle`; badges are plain muted counts.
+- **Indent** — each level steps in by `--zx-tree-indent`: `normal` is `--zx-space-3` (12px at the
+  default spacing unit) and `indent: 'narrow'` is `--zx-space-2` (8px), for a tree in a side menu or
+  another tight column, where every step is width the labels lose. A number is a step in pixels and
+  a string any CSS length; a value that is none of these keeps the normal step. The root carries
+  `data-indent="narrow"`; a step of your own is set as `--zx-tree-indent` on it.

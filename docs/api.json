@@ -502,13 +502,25 @@
         "name": "eyes",
         "type": "AgentEyes|null",
         "default": "null",
-        "description": "The eye shape, instead of the derived one."
+        "description": "The eye shape, instead of the derived one: one of the six in {@link AGENT_EYES} — `round`, `oval` and `square` with pupils, `dot`, `capsule` and `pixel` solid."
       },
       {
         "name": "spacing",
         "type": "0|1|2|null",
         "default": "null",
-        "description": "How far apart the eyes sit — narrow, middle, wide — instead of the derived spacing. With `tone`, `body` and `eyes` it gives back a look kept from {@link AgentAvatar#getTraits}."
+        "description": "How far apart the eyes sit — narrow, middle, wide — instead of the derived spacing."
+      },
+      {
+        "name": "mouth",
+        "type": "AgentMouth|null",
+        "default": "null",
+        "description": "The mouth's style — `smile`, `grin` or `cat` — instead of the derived one; `none` draws eyes only."
+      },
+      {
+        "name": "cheeks",
+        "type": "boolean|null",
+        "default": "null",
+        "description": "Whether the face blushes when it is calm, happy or listening, instead of the derived choice. With `tone`, `body`, `eyes`, `spacing` and `mouth` it gives back a look kept from {@link AgentAvatar#getTraits}."
       },
       {
         "name": "material",
@@ -520,7 +532,7 @@
         "name": "size",
         "type": "string|number",
         "default": "'md'",
-        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px and below."
+        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Small sizes draw less: no mouth or pupils below 20px, no blush below 28px, larger eyes at 24px and below."
       },
       {
         "name": "label",
@@ -544,6 +556,12 @@
         "type": "string|null",
         "default": "null",
         "description": "The activity's word, when the default is not the one to show."
+      },
+      {
+        "name": "expression",
+        "type": "AgentExpression|null",
+        "default": "null",
+        "description": "What the face shows, instead of the activity's expression: `happy` when a run finished or a person arrives, `listening` while a person types to the agent, or any activity's own (`calm`, `thinking`, `focused`, `alert`, `worried`, `asleep`). The dot and the accessible name still follow `activity`; the expression is never the only signal."
       },
       {
         "name": "indicator",
@@ -582,7 +600,7 @@
         "name": "setActivity",
         "signature": "setActivity(activity, [label])",
         "returns": "this",
-        "description": "Sets what the agent is doing and, optionally, the word for it. `null` clears the activity."
+        "description": "Sets what the agent is doing and, optionally, the word for it. `null` clears the activity. An `expression` set before is cleared too, so the face shows the new activity; set one again, or use `set({activity, expression})`, to keep showing it."
       },
       {
         "name": "getActivity",
@@ -600,7 +618,7 @@
         "name": "getTraits",
         "signature": "getTraits()",
         "returns": "AgentTraits",
-        "description": "The traits the face is drawn from, so an application can store them — to keep a look across a rename, or to settle a collision between two agents once — and give them back as the `tone`, `body`, `eyes` and `spacing` options."
+        "description": "The traits the face is drawn from, so an application can store them — to keep a look across a rename, or to settle a collision between two agents once — and give them back as the `tone`, `body`, `eyes`, `spacing`, `mouth` and `cheeks` options."
       },
       {
         "name": "destroy",
@@ -16173,6 +16191,15 @@
         "type": "number|string|null",
         "default": "null",
         "description": "Scroll height in pixels or any CSS length.",
+        "update": {
+          "rebuild": true
+        }
+      },
+      {
+        "name": "indent",
+        "type": "'normal'|'narrow'|number|string",
+        "default": "'normal'",
+        "description": "How far each level steps in: `normal` (12px at the default spacing unit), `narrow` (8px, for a tree in a side menu or another tight column), or a step of your own in pixels or any CSS length. The named steps follow the spacing unit; a value that is none of these keeps `normal`.",
         "update": {
           "rebuild": true
         }

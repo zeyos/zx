@@ -39,6 +39,10 @@ import {
  * @property {string|null} [emptyText] Text shown when the tree is empty, by default the
  *   `tree.noItems` message ("Nothing to show"). Null shows none.
  * @property {number|string|null} [height=null] Scroll height in pixels or any CSS length.
+ * @property {'normal'|'narrow'|number|string} [indent='normal'] How far each level steps in:
+ *   `normal` (12px at the default spacing unit), `narrow` (8px, for a tree in a side menu or another
+ *   tight column), or a step of your own in pixels or any CSS length. The named steps follow the
+ *   spacing unit; a value that is none of these keeps `normal`.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{node: TreeNode, id: unknown, ids: unknown[]}>) => void} [onselect] Selection listener.
  * @property {(event: CustomEvent<{node: TreeNode, id: unknown}>) => void} [onexpand] Expand listener.
@@ -86,7 +90,8 @@ export class TreeView extends Component {
     label: null,
     // Undefined rather than null, which shows nothing.
     emptyText: undefined,
-    height: null
+    height: null,
+    indent: 'normal'
   };
 
   /** @returns {HTMLElement} */
@@ -127,6 +132,7 @@ export class TreeView extends Component {
         : String(this.options.height);
       root.style.overflowY = 'auto';
     }
+    applyIndent(root, this.options.indent);
 
     this._items = cloneNodes(this.options.items);
     for (const id of toIterable(this.options.expanded)) this._expanded.add(id);
@@ -1003,4 +1009,37 @@ function isTextEntry(target) {
   if (element.localName !== 'input') return false;
   return !['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'range', 'color', 'file']
     .includes(/** @type {HTMLInputElement} */ (element).type);
+}
+
+/**
+ * Sets how far each level of a tree steps in: a named step as `data-indent`, which the stylesheet
+ * maps to a spacing token, or a step of the caller's own as `--zx-tree-indent`. Names are read
+ * without regard to case or outer space, a number in a string is pixels, and anything that is not a
+ * length keeps the normal step — an invalid one would void the row's padding altogether.
+ * @param {HTMLElement} root
+ * @param {unknown} indent The `indent` option.
+ * @returns {void}
+ */
+function applyIndent(root, indent) {
+  const text = typeof indent === 'string' ? indent.trim() : '';
+  const named = text.toLowerCase();
+  const pixels = typeof indent === 'number' ? indent : (text && Number.isFinite(Number(text)) ? Number(text) : NaN);
+  if (named === 'narrow') {
+    root.dataset.indent = 'narrow';
+  } else if (Number.isFinite(pixels)) {
+    if (pixels >= 0) root.style.setProperty('--zx-tree-indent', `${pixels}px`);
+  } else if (text && named !== 'normal' && isLength(text)) {
+    root.style.setProperty('--zx-tree-indent', text);
+  }
+}
+
+/**
+ * Whether a string is a CSS length the browser accepts, `calc()` and custom properties included.
+ * Without `CSS.supports()` it is taken as given.
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isLength(value) {
+  const css = globalThis.CSS;
+  return typeof css?.supports !== 'function' || css.supports('width', value);
 }
