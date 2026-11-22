@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.10.0 — 2026-11-22
+
+Agent faces with more character — six eye shapes, mouths, a blush and named expressions — and a
+narrow indent for TreeView.
+
 ### Added
 
 - **AgentAvatar faces have more character.** Three new eye shapes — `dot`, `capsule` and `pixel`,
